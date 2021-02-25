@@ -1,0 +1,56 @@
+---
+title: "Project3_response"
+author: "YL"
+date: "2/25/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(zoo)
+```
+
+```{r}
+# load data 
+covid <- read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv")
+write_csv(covid,file="WHO-Covid-19-backup.csv")
+
+# filter out countries in "Other" WHO regeions
+covid <- covid %>% 
+  filter(WHO_region != "Other") %>% 
+  mutate(WHO_region = fct_recode(WHO_region,"Eastern Mediterranean"="EMRO","Europe" = "EURO","Africa" = "AFRO","Western Pacific" = "WPRO","Americas"="AMRO","South-East Asia" = "SEARO"))
+
+# Target period of analysis: 2020-10-01 to 2020-11-30
+# Target country: Germany, UK, France, Italy, Poland
+covid_window <- covid %>% filter(Country %in% c("Germany", "The United Kingdom", "France", "Italy", "Poland") & Date_reported>"2020-09-15" & Date_reported<"2020-12-07")
+
+# virus incubation period d = 7
+# I_(t-d-1) = y_(t-1) - y_(t-d-1), where y is cumulative cases
+# delta_I_t = [y_t - y_(t-d)] - [y_(t-1)-y_(t-d-1)] = new_cases_t - new_cases_(t-d)
+covid_model.d7 <- covid_window %>% group_by(Country) %>% mutate(New_infectious = New_cases - lag(New_cases,7),lag_infectious = Cumulative_cases - lag(Cumulative_cases,7))
+
+# calculating 3, 5, 7-day moving average of new_infectious and cum_infectious
+covid_model.d7 <- covid_model.d7 %>% 
+  group_by(Country_code) %>% 
+  mutate(New_infec_07ma = zoo:: rollmean(New_infectious,k=7,fill=NA),
+         lag_infec_07ma = zoo:: rollmean(lag_infectious,k=7,fill=NA),
+         New_infec_05ma = zoo:: rollmean(New_infectious,k=5,fill=NA),
+         lag_infec_05ma = zoo:: rollmean(lag_infectious,k=5,fill=NA),
+         New_infec_03ma = zoo:: rollmean(New_infectious,k=3,fill=NA),
+         lag_infec_03ma = zoo:: rollmean(lag_infectious,k=3,fill=NA)) %>%
+  dplyr::ungroup()
+
+covid_model.d7 <- covid_model.d7 %>% filter(covid_model.d7$Date_reported>"2020-09-30" & covid_model.d7$Date_reported<"2020-12-01")
+range(covid_model.d7$Date_reported) # 2020-10-01 to 2020-11-30
+
+# Calculate response variable: delta_infectious
+covid_model.d7 <- covid_model.d7 %>% mutate(delta_infectious = 100*New_infectious/lag_infectious, delta_infec_07ma = 100*New_infec_07ma/lag_infec_07ma, delta_infec_05ma = 100*New_infec_05ma/lag_infec_05ma, delta_infec_03ma = 100*New_infec_03ma/lag_infec_03ma)
+
+# plot of delta_infectious vs. date
+plot(covid_model.d7$Date_reported,covid_model.d7$delta_infec_05ma, type="p",cex=0.3)
+
+write.csv(covid_model.d7,"who_new_response.csv")
+```
+
