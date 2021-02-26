@@ -17,10 +17,24 @@ library(zoo)
 covid <- read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv")
 write_csv(covid,file="WHO-Covid-19-backup.csv")
 
-# filter out countries in "Other" WHO regeions
+# filter out countries in "Other" WHO regions
 covid <- covid %>% 
   filter(WHO_region != "Other") %>% 
   mutate(WHO_region = fct_recode(WHO_region,"Eastern Mediterranean"="EMRO","Europe" = "EURO","Africa" = "AFRO","Western Pacific" = "WPRO","Americas"="AMRO","South-East Asia" = "SEARO"))
+
+# stay-at-home dataset
+home = read_csv("stay-at-home-covid.csv")             # change filename/directory if necessary
+home$stay_home_requirements = as.factor(home$stay_home_requirements)
+home[which(home$Entity == "United Kingdom"), "Entity"] = "The United Kingdom"
+
+# inner join data
+covid = inner_join(covid, home, 
+                     by = c("Date_reported" = "Date",
+                            "Country" = "Entity"),
+                     keep = FALSE)
+covid = covid[, c("Date_reported", "Country_code", "Country", "WHO_region", "New_cases", 
+                      "Cumulative_cases", "New_deaths", "Cumulative_deaths", 
+                      "stay_home_requirements")]
 
 # Target period of analysis: 2020-10-01 to 2020-11-30
 # Target country: Germany, UK, France, Italy, Poland
