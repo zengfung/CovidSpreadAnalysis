@@ -1,0 +1,308 @@
+---
+title: "Project_3"
+author: "APurv Srivastav"
+date: "2/25/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(zoo)
+```
+
+```{r}
+# load data 
+covid <- read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv")
+write_csv(covid,file="WHO-Covid-19-backup.csv")
+```
+
+
+```{r}
+# filter out countries in "Other" WHO regeions
+covid <- covid %>% 
+  filter(WHO_region != "Other") %>% 
+  mutate(WHO_region = fct_recode(WHO_region,"Eastern Mediterranean"="EMRO","Europe" = "EURO","Africa" = "AFRO","Western Pacific" = "WPRO","Americas"="AMRO","South-East Asia" = "SEARO"))
+# Target period of analysis: 2020-10-01 to 2020-11-30
+# Target country: Germany, UK, France, Italy, Poland
+covid_window <- covid %>% filter(Country %in% c("Germany", "The United Kingdom", "France", "Italy", "Poland") & Date_reported>"2020-09-15" & Date_reported<"2020-12-07")
+# virus incubation period d = 7
+# I_(t-d-1) = y_(t-1) - y_(t-d-1), where y is cumulative cases
+# delta_I_t = [y_t - y_(t-d)] - [y_(t-1)-y_(t-d-1)] = new_cases_t - new_cases_(t-d)
+```
+
+```{r}
+covid_model.d7 <- covid_window %>% group_by(Country) %>% mutate(New_infectious = New_cases - lag(New_cases,7),lag_infectious = Cumulative_cases - lag(Cumulative_cases,7))
+# calculating 3, 5, 7-day moving average of new_infectious and cum_infectious
+covid_model.d7 <- covid_model.d7 %>% 
+  group_by(Country_code) %>% 
+  mutate(New_infec_07ma = zoo:: rollmean(New_infectious,k=7,fill=NA),
+         lag_infec_07ma = zoo:: rollmean(lag_infectious,k=7,fill=NA),
+         New_infec_05ma = zoo:: rollmean(New_infectious,k=5,fill=NA),
+         lag_infec_05ma = zoo:: rollmean(lag_infectious,k=5,fill=NA),
+         New_infec_03ma = zoo:: rollmean(New_infectious,k=3,fill=NA),
+         lag_infec_03ma = zoo:: rollmean(lag_infectious,k=3,fill=NA)) %>%
+  dplyr::ungroup()
+covid_model.d7 <- covid_model.d7 %>% filter(covid_model.d7$Date_reported>"2020-09-30" & covid_model.d7$Date_reported<"2020-12-01")
+range(covid_model.d7$Date_reported) # 2020-10-01 to 2020-11-30
+# Calculate response variable: delta_infectious
+covid_model.d7 <- covid_model.d7 %>% mutate(delta_infectious = 100*New_infectious/lag_infectious, delta_infec_07ma = 100*New_infec_07ma/lag_infec_07ma, delta_infec_05ma = 100*New_infec_05ma/lag_infec_05ma, delta_infec_03ma = 100*New_infec_03ma/lag_infec_03ma)
+# plot of delta_infectious vs. date
+plot(covid_model.d7$Date_reported,covid_model.d7$delta_infec_05ma, type="p",cex=0.3)
+#write.csv(covid_model.d7,"who_new_response.csv")
+```
+
+
+```{r}
+who_new_response<- read.csv("who_new_response.csv")
+WOA<-read.csv("WOA.csv")
+Country<-WOA$Entity
+Date_reported<-WOA$Date
+WOAb<-cbind(WOA, Country, Date_reported)
+WOA<-WOAb[,c(-1,-3)]
+WOA_s<- filter(WOA, Date_reported>= "2020-10-01",Date_reported<= "2020-11-30")
+WOA_n<-filter(WOA_s, Country %in% c("Germany", "United Kingdom", "France", "Italy", "Poland"))
+stay_home_requirements<-as.factor(WOA_n$stay_home_requirements)
+#combined_data<-merge(who_new_response, WOA, by=c("Country", "Date_reported"))
+combined_data<-cbind(who_new_response, stay_home_requirements)
+combined_data<-combined_data[,-1]
+head(combined_data)
+```
+
+```{r}
+combined_data$Date_reported<-as.Date(combined_data$Date_reported, format="%m/%d/%Y")
+summary(combined_data)
+#summary(covid_model.d7)
+```
+
+
+## Quantitative Analysis
+### Histograms
+```{r}
+par(mfrow=c(3,4))
+Quant<- combined_data[,8:20]
+hist(combined_data$New_infectious,xlab = "New Infectious",col = "wheat", border = "blue", main = "New Infectious")
+hist(combined_data$lag_infectious,xlab = "Lag Infectious",col = "wheat", border = "blue", main = "Lag Infections")
+hist(combined_data$New_infec_07ma,xlab = " 7 day Moving Average of New Infectious",col = "wheat", border = "blue", main = " 7 day Moving Average of New Infections")
+hist(combined_data$lag_infec_07ma,xlab = " 7 day Moving Average of Lag Infectious",col = "wheat", border = "blue", main = " 7 day Moving Average of Lag Infections")
+hist(combined_data$New_infec_05ma,xlab = " 5 day Moving Average of New Infectious",col = "wheat", border = "blue", main = " 5 day Moving Average of New Infections")
+hist(combined_data$lag_infec_05ma,xlab = " 5 day Moving Average of Lag Infectious",col = "wheat", border = "blue", main = " 5 day Moving Average of Lag Infections")
+hist(combined_data$New_infec_03ma,xlab = " 3 day Moving Average of New Infectious",col = "wheat", border = "blue", main = " 3 day Moving Average of New Infections")
+hist(combined_data$lag_infec_03ma,xlab = " 3 day Moving Average of Lag Infectious",col = "wheat", border = "blue", main = " 3 day Moving Average of Lag Infections")
+hist(combined_data$delta_infectious,xlab = "Delta Infectious",col = "wheat", border = "blue", main = "Delta Infections")
+hist(combined_data$delta_infec_07ma,xlab = " 7 day Moving Average of Delta Infectious",col = "wheat", border = "blue", main = " 7 day Moving Average of Delta Infections")
+hist(combined_data$delta_infec_05ma,xlab = " 5 day Moving Average of Delta Infectious",col = "wheat", border = "blue", main = " 5 day Moving Average of Delta Infections")
+hist(combined_data$delta_infec_03ma,xlab = " 3 day Moving Average of Delta Infectious",col = "wheat", border = "blue", main = " 3 day Moving Average of Delta Infections")
+
+```
+
+```{r}
+par(mfrow=c(1,3))
+hist(combined_data[1:61,]$New_infectious,xlab = "New Infectious",col = "wheat", border = "blue", main = "New Infections for France")
+hist(combined_data[1:61,]$lag_infectious,xlab = "Lag Infectious",col = "wheat", border = "blue", main = "Lag Infections for France")
+hist(combined_data[1:61,]$delta_infectious,xlab = "Delta Infectious",col = "wheat", border = "blue", main = "Delta Infections for France")
+par(mfrow=c(1,3))
+hist(combined_data[62:122,]$New_infectious,xlab = "New Infectious",col = "wheat", border = "blue", main = "New Infections for Germany")
+hist(combined_data[62:122,]$lag_infectious,xlab = "Lag Infectious",col = "wheat", border = "blue", main = "Lag Infections for Germany")
+hist(combined_data[62:122,]$delta_infectious,xlab = "Delta Infectious",col = "wheat", border = "blue", main = "Delta Infections for Germany")
+par(mfrow=c(1,3))
+hist(combined_data[123:183,]$New_infectious,xlab = "New Infectious",col = "wheat", border = "blue", main = "New Infections for Italy")
+hist(combined_data[123:183,]$lag_infectious,xlab = "Lag Infectious",col = "wheat", border = "blue", main = "Lag Infections for Italy")
+hist(combined_data[123:183,]$delta_infectious,xlab = "Delta Infectious",col = "wheat", border = "blue", main = "Delta Infections for Italy")
+par(mfrow=c(1,3))
+hist(combined_data[184:244,]$New_infectious,xlab = "New Infectious",col = "wheat", border = "blue", main = "New Infections for Poland")
+hist(combined_data[184:244,]$lag_infectious,xlab = "Lag Infectious",col = "wheat", border = "blue", main = "Lag Infections for Poland")
+hist(combined_data[184:244,]$delta_infectious,xlab = "Delta Infectious",col = "wheat", border = "blue", main = "Delta Infections for Poland")
+par(mfrow=c(1,3))
+hist(combined_data[245:305,]$New_infectious,xlab = "New Infectious",col = "wheat", border = "blue", main = "New Infections for UK")
+hist(combined_data[245:305,]$lag_infectious,xlab = "Lag Infectious",col = "wheat", border = "blue", main = "Lag Infections for UK")
+hist(combined_data[245:305,]$delta_infectious,xlab = "Delta Infectious",col = "wheat", border = "blue", main = "Delta Infections for UK")
+```
+
+
+
+```{r}
+pairs(Quant)
+cor(Quant)
+```
+
+## Qualitative Analysis
+```{r}
+par(mfrow=c(3,2))
+### pie charts with percentages
+
+n = nrow(combined_data)/5
+
+lbls=c('0','1','2')
+pctF=round(100*table(combined_data[1:61,]$stay_home_requirements)/n)
+labF=paste(lbls,pctF)
+labF=paste(labF,'%',sep='')
+labF
+pie(table(combined_data[1:61,]$stay_home_requirements),labels=labF,col=c('red','green','light blue'), main='Pie Chart for Stay at Home Mandate: France')
+
+pctG=round(100*table(combined_data[62:122,]$stay_home_requirements)/n)
+labG=paste(lbls,pctG)
+labG=paste(labG,'%',sep='')
+labG
+pie(table(combined_data[62:122,]$stay_home_requirements),labels=labG,col=c('red','green','light blue'), main='Pie Chart for Stay at Home Mandate: Germany')
+
+pctI=round(100*table(combined_data[123:183,]$stay_home_requirements)/n)
+labI=paste(lbls,pctI)
+labI=paste(labI,'%',sep='')
+labI
+pie(table(combined_data[123:183,]$stay_home_requirements),labels=labI,col=c('red','green','light blue'), main='Pie Chart for Stay at Home Mandate: Italy')
+
+pctP=round(100*table(combined_data[184:244,]$stay_home_requirements)/n)
+labP=paste(lbls,pctP)
+labP=paste(labP,'%',sep='')
+labP
+pie(table(combined_data[184:244,]$stay_home_requirements),labels=labP,col=c('red','green','light blue'), main='Pie Chart for Stay at Home Mandate: Poland')
+
+pctB=round(100*table(combined_data[245:305,]$stay_home_requirements)/n)
+labB=paste(lbls,pctB)
+labB=paste(labB,'%',sep='')
+labB
+pie(table(combined_data[245:305,]$stay_home_requirements),labels=labB,col=c('red','green','light blue'), main='Pie Chart for Stay at Home Mandate: Great Britain')
+```
+
+## Quantitative vs Qualitative Analysis
+
+```{r}
+library(ggplot2)
+p <- ggplot(combined_data, aes(x = stay_home_requirements, y = combined_data$delta_infectious, fill = Country)) +
+              geom_boxplot()
+              #facet_wrap(~Country)
+
+p
+
+```
+
+
+```{r}
+
+#boxplot(combined_data$delta_infectious~combined_data$stay_home_requirements, main ='stay at home requirement on delta infectious',
+#xlab='stay at home requirement',ylab='delta infectious',col=rainbow(4))
+#boxplot(combined_data$delta_infec_07ma~combined_data$stay_home_requirements, main ='stay at home requirement on 7 day moving average of delta infectious',
+#xlab='stay at home requirement',ylab=' 7 day moving average of delta infectious',col=rainbow(4))
+#boxplot(combined_data$delta_infec_05ma~combined_data$stay_home_requirements, main ='stay at home requirement on 5 day moving average of delta infectious',
+#xlab='stay at home requirement',ylab=' 5 day moving average of delta infectious',col=rainbow(4))
+#boxplot(combined_data$delta_infec_03ma~combined_data$stay_home_requirements, main =' 3 day moving average of delta infectious',
+#xlab='stay at home requirement',ylab=' 3 day moving average of delta infectious',col=rainbow(4))
+```
+
+```{r}
+# Creating facets
+
+ggplot(data = combined_data) +
+
+  geom_histogram(mapping = aes(x = delta_infectious), binwidth = 0.1)+
+
+  facet_wrap(~Country)
+
+ 
+
+```
+
+```{r}
+# Creating frequency polygon
+
+ggplot(data = combined_data, mapping = aes(x = delta_infectious, colour = Country)) +
+
+  geom_freqpoly(binwidth = 0.1)
+
+```
+
+```{r}
+
+## Spaghetti plot
+
+ 
+
+fig.spaghetti.1 <-
+
+  #covid %>%
+
+  #filter(data = covid_model.d7, Date_reported>= "2021-01-01", Date_reported<= "2021-01-28", WHO_region=="Africa") %>%
+
+#  mutate(Date=as.Date(Date_reported)) %>%
+
+  ggplot(data = combined_data,aes(x=Date_reported,y=delta_infectious,by=Country)) +
+
+  geom_line(aes(color=Country)) +
+
+  theme(legend.position ='none')
+
+fig.spaghetti.1  
+
+```
+
+```{r}
+
+fig.spaghetti.2 <-
+
+  #covid %>%
+
+  #filter(data = covid_model.d7, Date_reported>= "2021-01-01", Date_reported<= "2021-01-28", WHO_region=="Africa") %>%
+
+#  mutate(Date=as.Date(Date_reported)) %>%
+
+  ggplot(data = combined_data,aes(x=Date_reported,y=New_infectious,by=Country)) +
+
+  geom_line(aes(color=Country)) +
+
+  theme(legend.position ='none')
+
+fig.spaghetti.2  
+
+```
+
+```{r}
+ 
+
+## Scatterplot ####
+
+fig.scatter.1 <-
+
+  #covid %>%
+
+  #filter(Date_reported=="2021-01-28", WHO_region=="Africa") %>%
+
+  ggplot(data = combined_data, aes(x=New_infectious,y=delta_infectious)) +
+
+  geom_point()+
+
+  geom_text(aes(label=Country),hjust=0, vjust=0)
+
+fig.scatter.1
+
+ 
+
+
+```
+
+
+### Mixed Effects Model
+```{r}
+library(lme4)
+mod<-lmer(combined_data$delta_infectious~(1|combined_data$Country)+combined_data$stay_home_requirements+combined_data$New_infectious+combined_data$lag_infectious, data=combined_data, REML = FALSE)
+coefs<-data.frame(coef(summary(mod)))
+coefs$p.z <- 2 * (1 - pnorm(abs(coefs$t.value)))
+coefs
+summ.mod<-summary(mod)
+
+```
+
+### Panel Model
+```{r}
+library(AER)
+library(plm)
+plm_final <- plm(combined_data$delta_infectious~+combined_data$stay_home_requirements+combined_data$New_infectious+combined_data$lag_infectious,data=combined_data,index=c("Country", "Date_reported"),model="within")
+coeftest(plm_final)
+summary(plm_final)
+```
+
+```{r}
+sessionInfo()
+```
+
