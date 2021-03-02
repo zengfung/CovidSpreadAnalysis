@@ -1,0 +1,138 @@
+---
+title: "STA207_project3"
+author: "YL"
+date: "2/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(zoo)
+library(ggplot2)
+library(plotly)
+library(plm)
+library(knitr)
+```
+
+```{r}
+# load data 
+covid <- read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv")
+write_csv(covid,file="WHO-Covid-19-backup.csv")
+
+# filter out countries in "Other" WHO regeions
+covid <- covid %>% 
+  filter(WHO_region != "Other") %>% 
+  mutate(WHO_region = fct_recode(WHO_region,"Eastern Mediterranean"="EMRO","Europe" = "EURO","Africa" = "AFRO","Western Pacific" = "WPRO","Americas"="AMRO","South-East Asia" = "SEARO"))
+
+# Data from 2020-01-03 to 2021-02-24, 236 countries
+range(covid$Date_reported)
+length(unique(covid$Country))
+```
+
+```{r}
+# Target period of analysis: 2020-10-01 to 2020-11-30
+# Target country: Germany, UK, France, Italy, Poland
+covid_window <- covid %>% filter(Country %in% c("Germany", "The United Kingdom", "France", "Italy", "Poland") & Date_reported>"2020-09-15" & Date_reported<"2020-12-07")
+
+# virus incubation period d = 7
+# I_(t-d-1) = y_(t-1) - y_(t-d-1), where y is cumulative cases
+# delta_I_t = [y_t - y_(t-d)] - [y_(t-1)-y_(t-d-1)] = new_cases_t - new_cases_(t-d)
+covid_model.d7 <- covid_window %>% group_by(Country) %>% mutate(New_infectious = New_cases - lag(New_cases,7),lag_infectious = Cumulative_cases - lag(Cumulative_cases,7)) 
+
+# calculating 3, 5, 7-day moving average of new_infectious and cum_infectious
+covid_model.d7 <- covid_model.d7 %>% 
+  group_by(Country_code) %>% 
+  mutate(New_infec_07ma = zoo:: rollmean(New_infectious,k=7,fill=NA),
+         lag_infec_07ma = zoo:: rollmean(lag_infectious,k=7,fill=NA),
+         New_infec_05ma = zoo:: rollmean(New_infectious,k=5,fill=NA),
+         lag_infec_05ma = zoo:: rollmean(lag_infectious,k=5,fill=NA),
+         New_infec_03ma = zoo:: rollmean(New_infectious,k=3,fill=NA),
+         lag_infec_03ma = zoo:: rollmean(lag_infectious,k=3,fill=NA)) %>%
+  dplyr::ungroup()
+
+covid_model.d7 <- covid_model.d7 %>% filter(covid_model.d7$Date_reported>"2020-09-30" & covid_model.d7$Date_reported<"2020-12-01")
+range(covid_model.d7$Date_reported) # 2020-10-01 to 2020-11-30
+
+# Calculate response variable: delta_infectious
+covid_model.d7 <- covid_model.d7 %>% mutate(delta_infectious = 100*New_infectious/lag_infectious, delta_infec_07ma = 100*New_infec_07ma/lag_infec_07ma, delta_infec_05ma = 100*New_infec_05ma/lag_infec_05ma, delta_infec_03ma = 100*New_infec_03ma/lag_infec_03ma)
+
+# plots of delta_infectious vs. date
+plot(covid_model.d7$Date_reported,covid_model.d7$delta_infec_05ma, type="p",cex=0.3)
+
+infection_country = covid_model.d7 %>% ggplot(aes(x=Date_reported,y=delta_infec_07ma, group=Country,color=Country))+geom_line()+scale_x_date() 
+
+ggplotly(infection_country,tooltip = c("x","colour","y"))
+
+#response variable_by_date
+write.csv(covid_model.d7,"who_new_response.csv")
+names(covid_model.d7)
+
+```
+
+```{r}
+# stay-at-home data
+home = read_csv("stay-at-home-covid.csv")  
+# filter data
+home <- home %>% filter(Entity %in% c("Germany", "United Kingdom", "France", "Italy", "Poland") & Date>"2020-09-30" & Date<"2020-12-01")
+# find the date that each country tightened their stay-at-home order
+ind = home %>% group_by(Entity) %>% mutate(change= stay_home_requirements-lag(stay_home_requirements,1))
+start_date = ind[which(ind$change!=0),]
+
+# response variable_by_days_since_policy_started
+covid_new_d7 = covid_model.d7
+# the date that stay-at-home order was tightened
+policy_start = rep(0,dim(covid_new_d7)[1]) 
+policy_start[which(covid_new_d7$Country=="France")] = "2020-10-17" 
+policy_start[which(covid_new_d7$Country=="Germany")] = "2020-10-15" 
+policy_start[which(covid_new_d7$Country=="Italy")] = "2020-10-23"
+policy_start[which(covid_new_d7$Country=="Poland")] = "2020-10-24"
+policy_start[which(covid_new_d7$Country=="The United Kingdom")] = "2020-10-23"
+covid_new_d7$policy_start = as.Date(policy_start)
+# number of days prior to or after policy issued
+days_since_start = rep(0, dim(covid_new_d7)[1])
+days_since_start = covid_new_d7$Date_reported - covid_new_d7$policy_start
+covid_new_d7$days_since_start = days_since_start
+# new rsponse dataset by days since policy started
+covid_by_days = covid_new_d7[which(covid_new_d7$days_since_start>-15 & covid_new_d7$days_since_start<29),]
+
+# plots of growth of infectious population vs. days since order started
+plot(covid_by_days$days_since_start,covid_by_days$delta_infec_07ma, type="p",cex=0.3)
+
+infection_country_bydays = covid_by_days %>% ggplot(aes(x=days_since_start,y=delta_infec_07ma, group=Country,color=Country))+geom_line()
+
+ggplotly(infection_country_bydays,tooltip = c("x","colour","y"))
+```
+
+```{r}
+covid_by_days$days_since_start <- as.factor(covid_by_days$days_since_start)
+covid_by_days$days_since_start <- relevel(covid_by_days$days_since_start,ref = "-1")
+
+# OLS model
+ols <- lm(delta_infec_07ma~days_since_start,data = covid_by_days)
+# country-fixed effect model
+country_plm <- plm(delta_infec_07ma~days_since_start,data = data,index = c("Country","days_since_start"), model = "within")
+# overall regression effect
+
+# confidence interval for each coefficient
+coef = country_plm$coefficients
+se = sqrt(diag(country_plm$vcov))
+alpha = 0.05
+t_stat = qt(1-alpha/2, country_plm$df.residual,lower.tail = FALSE)
+CI_lower = coef - t_stat*se
+CI_upper = coef + t_stat*se
+inference <- data.frame(Days_since_start = c(-14:-2,0:28), Estimate = coef, CI_lower = CI_lower, CI_upper = CI_upper)
+
+summary = inference[14:42,]
+summary$CI_lower = round(summary$CI_lower,digits = 2); summary$CI_upper = round(summary$CI_upper,digits = 2); summary$Estimate = round(summary$Estimate,digits=2)
+kable(summary,row.names = FALSE,align = "c", caption = "Coefficient estimates from regression of daily growth rate of Covid-19 infectious population on number of days since stay-at-home order")
+
+# plot coefficient estimates and confidence bands
+ggplot(inference, aes(x=Days_since_start,y=Estimate)) + 
+  geom_line() + geom_point() + 
+  geom_ribbon(mapping = aes(ymin = CI_lower, ymax = CI_upper),alpha = 0.4) + 
+  labs(x = "Days since stay-at-home order",y = "\u0394 Growth in infectious population")+
+  geom_vline(xintercept = 0, linetype = "dashed",color = "red")
+```
+
