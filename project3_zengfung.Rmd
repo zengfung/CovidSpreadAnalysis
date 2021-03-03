@@ -75,12 +75,15 @@ covid_model.d7 <- covid_model.d7 %>%
 # lagged change in stay home restriction
 covid_model.d7 <- covid_model.d7 %>%
   group_by(Country) %>%
-  mutate(lag_stay_home_diff_07 = as.factor(lag(as.numeric(stay_home_requirements), 30) -
-                                         lag(as.numeric(stay_home_requirements), 37)),
-         lag_stay_home_diff_05 = as.factor(lag(as.numeric(stay_home_requirements), 30) -
-                                         lag(as.numeric(stay_home_requirements), 35)),
-         lag_stay_home_diff_03 = as.factor(lag(as.numeric(stay_home_requirements), 30) -
-                                         lag(as.numeric(stay_home_requirements), 33))
+  mutate(lag_stay_home = lag(stay_home_requirements, 14),
+         lag_stay_home_diff_07 = as.factor(lag(as.numeric(stay_home_requirements), 14) -
+                                         lag(as.numeric(stay_home_requirements), 21)),
+         lag_stay_home_diff_05 = as.factor(lag(as.numeric(stay_home_requirements), 14) -
+                                         lag(as.numeric(stay_home_requirements), 19)),
+         lag_stay_home_diff_03 = as.factor(lag(as.numeric(stay_home_requirements), 14) -
+                                         lag(as.numeric(stay_home_requirements), 17)),
+         lag_stay_home_diff_01 = as.factor(lag(as.numeric(stay_home_requirements), 14) -
+                                         lag(as.numeric(stay_home_requirements), 15))
   )
 
 # calculating 3, 5, 7-day moving average of new_infectious and cum_infectious
@@ -156,46 +159,42 @@ ggplot(
   )
 ```
 
+Bar charts
+```{r}
+ggplot(
+  data = covid_model.d7,
+  mapping = aes(
+    x = Date_reported,
+    y = delta_infec_07ma,
+    fill = stay_home_requirements
+  )
+) +
+  geom_bar(
+    stat = "identity"
+  ) +
+  labs(
+    title = "COVID-19 daily cases and stay-at-home requirement in Oct-Nov 2020",
+    x = "Date",
+    y = "Country",
+    fill = "Restriction"
+  ) +
+  facet_grid(
+    rows = vars(Country)
+  ) +
+  theme(
+    legend.position = "bottom"
+  )
+```
+
 Notes:
 
 * All countries increased restriction at around the mid-week of October.
 
-# Models
+# Model Fitting
 
-**Model 1:** Correlation between infectious rate and change in restriction level.
-$$
-\Delta y_{ct} = \beta_0 + \beta_1 x_{1,t} + \beta_2 x_{2,-1,ct} + \beta_3 x_{2,1,ct} + \beta4 x_{2,2,ct} + \epsilon_{ct}
-$$
-
-Note:
-
-* If we compare the following models, the `stay_home_diff_07` model turns out to be the most significant. This is shown in the p-values and $R^2$ values. <br>
-* Large increase in infectious rate is highly correlated with increase in stay home restrictions.
-
-```{r}
-library(plm)
-model1.07 = plm(delta_infec_07ma ~ Date_reported + stay_home_diff_07, data = covid_model.d7,
-                index = "Country", model = "within")
-summary(model1.07)
-```
-
-```{r}
-model1.05 = plm(delta_infec_05ma ~ Date_reported + stay_home_diff_05, data = covid_model.d7,
-                index = "Country", model = "within")
-summary(model1.05)
-```
-
-```{r}
-model1.03 = plm(delta_infec_03ma ~ Date_reported + stay_home_diff_03, data = covid_model.d7,
-                index = "Country", model = "within")
-summary(model1.03)
-```
-
-
-**Model 2:** 
 Correlation between infectious rate and change in restriction level a month prior.
 $$
-\Delta y_{ct} = \beta_0 + \beta_1 x_{1,t} + \beta_2 x_{2,1,ct} + \beta_3 x_{2,2,ct} + \epsilon_{ct}
+\Delta y_{ct} = \alpha_c + \alpha_t + \beta_{1,1} x_{1,1,ct} + \beta_{1,2} x_{1,2,ct} + \beta_{2,-1} x_{2,-1,ct} + \beta_{2,1} x_{2,1,ct} + \beta_{2,2} x_{2,2,ct} + u_{ct}
 $$
 
 Note: 
@@ -204,7 +203,25 @@ Note:
 * A significant increase in stay home restrictions (up by 2 levels) is necessary for effects to be significant.
 
 ```{r}
-model1.lag07 = plm(delta_infec_07ma ~ Date_reported + lag_stay_home_diff_07, data = covid_model.d7,
-                index = "Country", model = "within")
-summary(model1.lag07)
+model3 = plm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07, data = covid_model.d7,
+                index = c("Country", "Date_reported"), model = "within")
+summary(model3)
 ```
+Assumptions:
+
+* error term has conditional mean zero, ie $E(u_{ict} | X_{i1}...X_{iT})$ (strict exogeneity)
+* All $X_i$ are iid draws from their joint distribution
+* large outliers are unlikely
+* no perfect multicollinearity
+
+
+# Model Diagnostics
+
+* VIF for multicollinearity
+* each x are iid
+* test for outliers using cooks vs leverage
+* test for fixed effects vs random effects (durbin-wu-hausman test)
+
+# Source:
+https://www.econometrics-with-r.org/10-4-regression-with-time-fixed-effects.html <br>
+https://www.schmidheiny.name/teaching/panel2up.pdf <br>
