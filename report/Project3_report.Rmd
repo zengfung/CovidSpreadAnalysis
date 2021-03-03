@@ -1,0 +1,63 @@
+---
+title: "Effect of stay-at-home order on Covid-19 infectious population growth rate in 5 European countries: France, Germany, UK, Italy, and Poland"
+author: "Team 2: Zeng Fung Liew (913802324), Yixing Lu (915501254), Liela Meng (917843295), Apurv Srivastav (918936075)"
+date: "March 5th, 2021"
+output:
+  html_document:
+    df_print: paged
+    number_sections: yes
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+# Abstract 
+
+
+
+# Introduction
+
+
+ 
+# Background 
+
+
+
+# Descriptive analysis 
+The summary statistics should include at least time, number of cases, number of death, case-mortality rate.
+
+# Inferential analysis 
+
+## Lagged effect of stay-at-home order 
+
+## Effect of policy strictness on infectious population growth rate
+
+# Sensitivity analysis 
+
+## Lagged effect of stay-at-home order 
+
+## Effect of policy strictness on infectious population growth rate
+
+
+# Causal interpretation 
+
+
+# Discussion 
+
+
+# Acknowledgement {-}
+
+
+# Reference {-}
+
+
+# Session info {-}
+
+<span style='color:blue'>
+Report information of your `R` session for reproducibility. 
+</span> 
+
+
+```{r}
+sessionInfo()
+```
