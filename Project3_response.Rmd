@@ -107,7 +107,8 @@ covid_model.d7 <- covid_model.d7 %>%
   mutate(delta_infectious = 100*New_infectious/lag_infectious, 
          delta_infec_07ma = 100*New_infec_07ma/lag_infec_07ma, 
          delta_infec_05ma = 100*New_infec_05ma/lag_infec_05ma, 
-         delta_infec_03ma = 100*New_infec_03ma/lag_infec_03ma)
+         delta_infec_03ma = 100*New_infec_03ma/lag_infec_03ma,
+         lag_delta_infec_07ma = lag(delta_infec_07ma, 14))
 
 # plot of delta_infectious vs. date
 plot(covid_model.d7$Date_reported,covid_model.d7$delta_infec_05ma, 
@@ -166,7 +167,7 @@ ggplot(
   mapping = aes(
     x = Date_reported,
     y = delta_infec_07ma,
-    fill = stay_home_requirements
+    fill = lag_stay_home_diff_07
   )
 ) +
   geom_bar(
@@ -192,20 +193,54 @@ Notes:
 
 # Model Fitting
 
-Correlation between infectious rate and change in restriction level a month prior.
+To find out whether the change in level of stay-home restriction has an impact on the rate of growth in active infections, we fit a panel regression model as follows:
 $$
 \Delta y_{ct} = \alpha_c + \alpha_t + \beta_{1,1} x_{1,1,ct} + \beta_{1,2} x_{1,2,ct} + \beta_{2,-1} x_{2,-1,ct} + \beta_{2,1} x_{2,1,ct} + \beta_{2,2} x_{2,2,ct} + u_{ct}
 $$
+where 
 
-Note: 
+(1) $\Delta y_{ct}$ is the change in rate of active infections for country $c$ at time $t$, which is calculated using 
 
-* Increasing stay home restrictions DOES work, but there is a time lag of about a month. <br>
-* A significant increase in stay home restrictions (up by 2 levels) is necessary for effects to be significant.
+$$
+\Delta y_{ct} = \frac{(y_{ct} - y_{c(t-7)}) - (y_{c(t-1)} - y_{c(t-8)})}{y_{c(t-1)} - y_{c(t-8)}}
+$$
+where $y_{ct}$ is the number of new cases for country $c$ at time $t$.
 
-```{r}
-model3 = plm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07, data = covid_model.d7,
+(2) $\alpha_c$ is the country-level fixed effect, ie. $c = \{$France, Germany, UK, Poland, Italy$\}$.
+
+(3) $\alpha_t$ is the time-level fixed effect, ie. the dates reported for this data analysis, $t = \{10/01/2020, \ldots, 11/30/2020\}$.
+
+(4) $x_{1,i,ct}$ is the stay-home requirement level for country $c$ at 14 days prior to time $t$, ie. $i = \{0,1,2\}$. Since $x_{1,ct}$ is represented as dummy variables, the case for $x_{1,0,ct}$ is implied by the model when $x_{1,1,ct} = x_{1,2,ct} = 0$.
+
+(5) $x_{2,j,ct}$ is the change in stay-home requirement for country $c$ at the previous week of (4). This is computed as follows:
+$$
+x_{2,j,ct} = \mathbb{1}_{\{x_{1,i,ct} - x_{1,i',c(t-7)}\}} \ {\rm for } \ i,i' = \{0,1,2\}, j = \{-1, 0, 1, 2\} 
+$$
+Since $x_{2,ct}$ is represented as dummy variables, the case for $x_{2,0,ct}$ is implied by the model when $x_{2,1,ct} = x_{2,2,ct} = x_{2,-1,ct} = 0$.
+
+(6) $u_{ct}$ is the error for country $c$ at time $t$.
+
+This model comes with a few advantages. The fixed effect $\alpha_c$ controls the time-invariant effect of countries which can impact the change in rate of active infections for each country, eg. weather, socioeconomy status, local health care system, and population size [1]. The fixed effect $\alpha_t$ controls the factors that vary over time. As discussed by Fowler et al., this includes the changes in testing availability, national policies that vary over time, and the occurence of major events that impacts social behaviors of people in the country. However, the panel regression model also comes with some strict assumptions. These assumptions and diagnostics are tested and discussed under the Sensitivity Analysis section.
+
+The assumptions for this model are as follows:
+
+(1) All $x_{1,ct}$ and $x_{2,ct}$ are identically and independently distributed (i.i.d).
+
+(2) The occurrence of large outliers are unlikely.
+
+(3) Perfect multicollinearity within predictor variables to not exist.
+
+(4) The error term $u_{ct}$ has conditional mean zero, ie. $E[u_{ct} | x]$
+
+(5) Homocedascity (constant variance) of the response variable $\Delta y_{ct}$.
+
+
+```{r, message = FALSE}
+library(plm)
+model = plm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07 +lag_delta_infec_07ma, data = covid_model.d7,
                 index = c("Country", "Date_reported"), model = "within")
-summary(model3)
+summary(model)
+fixef(model)
 ```
 Assumptions:
 
@@ -213,7 +248,15 @@ Assumptions:
 * All $X_i$ are iid draws from their joint distribution
 * large outliers are unlikely
 * no perfect multicollinearity
+* conditional relationship y given x is linear in the explanatory variables
+* constant variance
 
+# Model Interpretation
+Note: 
+
+* Increasing stay home restrictions DOES work with a time lag of about 2 weeks.  <br>
+* level 2 restriction is about 35% more effective than level 1 restriction <br>
+* A significant increase in stay home restrictions (up by 2 levels) is necessary for effects to be significant.
 
 # Model Diagnostics
 
@@ -221,6 +264,8 @@ Assumptions:
 * each x are iid
 * test for outliers using cooks vs leverage
 * test for fixed effects vs random effects (durbin-wu-hausman test)
+* test for time fixed effects(how?)
+* test for cross-sectional dependence (how?)
 
 # Source:
 https://www.econometrics-with-r.org/10-4-regression-with-time-fixed-effects.html <br>
