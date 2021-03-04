@@ -56,7 +56,6 @@ home <- home %>% filter(Entity %in% c("Germany", "United Kingdom", "France", "It
 # find the date that each country tightened their stay-at-home order
 ind = home %>% group_by(Entity) %>% mutate(change= stay_home_requirements-lag(stay_home_requirements,1))
 start_date = ind[which(ind$change!=0),]
-
 # response variable_by_days_since_policy_started
 covid_new_d7 = covid_model.d7
 # the date that stay-at-home order was tightened
@@ -115,7 +114,6 @@ An one-way fixed effect regression model was defined as: $$Y_{ct} = \beta_c + \s
 ### Model fitting results
 ```{r model fitting, include = FALSE}
 covid_by_days$days_since_start <- relevel(covid_by_days$days_since_start,ref = "-1")
-
 # OLS model
 ols <- lm(delta_infec_07ma~days_since_start,data = covid_by_days)
 # country-fixed effect model
@@ -128,10 +126,8 @@ t_stat = qt(1-alpha/2, country_plm$df.residual,lower.tail = FALSE)
 CI_lower = coef - t_stat*se
 CI_upper = coef + t_stat*se
 inference <- data.frame(Days_since_start = c(-14:-2,0:28), Estimate = coef, CI_lower = CI_lower, CI_upper = CI_upper)
-
 summary = inference[14:42,]
 summary$CI_lower = round(summary$CI_lower,digits = 2); summary$CI_upper = round(summary$CI_upper,digits = 2); summary$Estimate = round(summary$Estimate,digits=2)
-
 # R2 and Ra2
 n = dim(covid_by_days)[1]
 sst = with(covid_by_days, sum((delta_infec_07ma-mean(delta_infec_07ma))^2))
@@ -145,7 +141,6 @@ Ra2 = 1- (1-R2)*(n-1)/(n-length(coef(country_plm))-1)
 ```{r model results, fig.height=4,fig.width = 10, warning = FALSE}
 # table of beta estimates and ci 
 kable(summary,row.names = FALSE,align = "c", caption = "Table 1: Coefficient estimates from regression of daily growth rate of Covid-19 infectious population on number of days since stay-at-home order") 
-
 # plot coefficient estimates and confidence bands
 ggplot(inference, aes(x=Days_since_start,y=Estimate)) + 
   geom_line() + geom_point() + 
@@ -155,7 +150,116 @@ ggplot(inference, aes(x=Days_since_start,y=Estimate)) +
 ```
 * The dashed red lines dictated D-day of the policy and 13 days after its implementation when its effect on reducing growth rate of infectious population firstly became significant.
 
+
+
 ## Effect of policy strictness on infectious population growth rate
+
+To find out whether the change in level of stay-home restriction has an impact on the rate of growth in active infections, we fit a panel regression model as follows:
+$$
+\Delta y_{ct} = \alpha_c + \alpha_t + \beta_{1,1} x_{1,1,ct} + \beta_{1,2} x_{1,2,ct} + \beta_{2,-1} x_{2,-1,ct} + \beta_{2,1} x_{2,1,ct} + \beta_{2,2} x_{2,2,ct} + \beta_{3} x_{3,ct} + u_{ct}
+$$
+where 
+
+(1) $\Delta y_{ct}$ is the change in rate of active infections for country $c$ at time $t$, which is calculated using 
+
+$$
+\Delta y_{ct} = \frac{(y_{ct} - y_{c(t-7)}) - (y_{c(t-1)} - y_{c(t-8)})}{y_{c(t-1)} - y_{c(t-8)}}
+$$
+where $y_{ct}$ is the number of new cases for country $c$ at time $t$.
+
+(2) $\alpha_c$ is the country-level fixed effect, ie. $c = \{$France, Germany, UK, Poland, Italy$\}$.
+
+(3) $\alpha_t$ is the time-level fixed effect, ie. the dates reported for this data analysis, $t = \{10/01/2020, \ldots, 11/30/2020\}$.
+
+(4) $x_{1,i,ct}$ is the stay-home requirement level for country $c$ at 14 days prior to time $t$, ie. $i = \{0,1,2\}$. Since $x_{1,ct}$ is represented as dummy variables, the case for $x_{1,0,ct}$ is implied by the model when $x_{1,1,ct} = x_{1,2,ct} = 0$.
+
+(5) $x_{2,j,ct}$ is the change in stay-home requirement for country $c$ at the previous week of (4). This is computed as follows:
+$$
+x_{2,j,ct} = \mathbb{1}_{\{x_{1,i,ct} - x_{1,i',c(t-7)}\}} \ {\rm for } \ i,i' = \{0,1,2\}, j = \{-1, 0, 1, 2\} 
+$$
+Since $x_{2,ct}$ is represented as dummy variables, the case for $x_{2,0,ct}$ is implied by the model when $x_{2,1,ct} = x_{2,2,ct} = x_{2,-1,ct} = 0$.
+
+(6) $x_{3,ct}$ is the change in rate of active infections for country $c$ 14 days prior to time $t$, which is a 14-day lag of same measurement of the response variable $\Delta y_{ct}$.
+
+(7) $u_{ct}$ is the error for country $c$ at time $t$.
+
+This model comes with a few advantages. The fixed effect $\alpha_c$ controls the time-invariant effect of countries which can impact the change in rate of active infections for each country, eg. weather, socioeconomy status, local health care system, and population size [1]. The fixed effect $\alpha_t$ controls the factors that vary over time. As discussed by Fowler et al., this includes the changes in testing availability, national policies that vary over time, and the occurence of major events that impacts social behaviors of people in the country. However, the panel regression model also comes with some strict assumptions. These assumptions and diagnostics are tested and discussed under the Sensitivity Analysis section.
+
+The fitted model gives us the following estimates:
+```{r}
+library(plm)
+covid_model.d7$lag_stay_home_diff_07 = as.factor(covid_model.d7$lag_stay_home_diff_07)
+covid_model.d7$lag_stay_home = as.factor(covid_model.d7$lag_stay_home)
+model = plm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07 +lag_delta_infec_07ma, data = covid_model.d7,
+                index = c("Country", "Date_reported"), model = "within")
+tt = as.data.frame(summary(model)$coef)
+rownames(tt) = c("Stay-home restriction at t-14 == 1",
+                 "Stay-home restriction at t-14 == 2",
+                 "Change in stay-home restriction at t-14 == +2",
+                 "Change in stay-home restriction at t-14 == -1",
+                 "Change in stay-home restriction at t-14 == +1",
+                 "Change in rate of active infections at t-14")
+tt
+```
+
+The fixed effect coefficients for the countries are obtained as shown below:
+```{r}
+tt = as.data.frame(fixef(model))
+colnames(tt) = expression(alpha[c])
+tt
+```
+
+We can interpret the $\hat \alpha_c$ values above as a growth rate in active infections when there were no stay-at-home policies implemented at all in the previous 2-3 weeks. As we can see that the $\hat \alpha_c$ values are all positive, it means that the growth rate of active infections increases significantly in all 5 countries when there are no stay-at-home policies in place. This is especially the case in the UK with its growth rate of more than 7. 
+
+Based on the results above, it is also obvious to see that a sticter stay-at-home policy results in a larger decrease in rate of growth in active infections. Assuming there are no changes in stay-at-home policies, a level-2 stay-at-home restriction (-8.43) reduces the growth rate of active infections by more than 2 as compared to a level-1 stay-at-home restriction )-6.26).
+
+On the other hand, a change in policy on the stay-at-home restriction 2-3 weeks prior also has a significant impact on the growth rate in active infections. Assuming a country increased its stay-at-home level within the past 2-3 weeks (eg. from level 1 to level 2), we still expect to observe a decreasing growth rate in active infections. For instance, Italy, who wsn't implementing any form of stay-at-home restriction up until mid-October, would expect to observe a decrease in growth rate of active infections by $4.07$(ie. $- 8.43 + 4.36$) in November.
+
+Meanwhile, it is also important to note that the change in rate of active infections are also affected by its own value from 2 weeks prior. Its coefficient estimate of 0.36 suggests that a country's change in rate of active infections will continuously increase if no stay-at-home policies were put in place.
+
+## Siginificance of predictor variables
+An important aspect when interpreting the fitted model above is to ensure that the coefficient estimates are significant. In other words, the standard errors of the coefficient estimates should not be so large such that there are no significant evidence that the predictor variables correlate with the change in rate of active infections. To test this, we will use the $F$-test to check the significance of each predictor variable.
+
+* **14-day lagged effect of stay-at-home order ** <br>
+The null and alternate hypothesis are
+$$
+H_0: \beta_{1,1} = \beta_{1,2} = 0 {\rm \ vs \ } H_a: \text{at least one of }\beta_{1,i} \neq 0
+$$
+Since the p-value obtained from the $F$-test is less than 2e-12, we reject the null hypothesis and conclude that the 14-day lagged effect of stay-at-home order is significant.
+```{r, include = FALSE}
+model.no_order = plm(delta_infec_07ma ~ lag_stay_home_diff_07 +lag_delta_infec_07ma, data = covid_model.d7,
+                     index = c("Country", "Date_reported"), model = "within")
+pFtest(model, model.no_order)       # --- lag stay home req. is significant
+```
+
+* **14-day lagged effect of change in stay-at-home order** <br>
+The null and alternate hypothesis are
+$$
+H_0: \beta_{2,1} = \beta_{2,2} = \beta_{2,-1} = 0 {\rm \ vs \ } H_a: \text{at least one of }\beta_{2,j} \neq 0
+$$
+Since the p-value obtained from the $F$-test is approximately 1e-10 (< 0.001), we reject the null hypothesis and conclude that the 14-day lagged effect stay-at-home policy change is significant.
+```{r, include = FALSE}
+model.no_polchg = plm(delta_infec_07ma ~ lag_stay_home +lag_delta_infec_07ma, data = covid_model.d7,
+                     index = c("Country", "Date_reported"), model = "within")
+pFtest(model, model.no_polchg)      # --- lag policy change effect is significant
+```
+
+
+* **14-day lagged effect of change in rate of active infections** <br>
+The null and alternate hypothesis are 
+$$H_0: \beta_{3} = 0 {\rm \ vs \ } H_a: \beta_{3} \neq 0$$
+Since the p-value obtained from the $F$-test is approximately 1e-12 (< 0.001), we reject the null hypothesis and conclude that the 14-day lagged effect of the change in rate of active infections is significant.
+```{r, include=FALSE}
+model.no_lagy = plm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07, data = covid_model.d7,
+                     index = c("Country", "Date_reported"), model = "within")
+pFtest(model, model.no_lagy)      # --- lag y effect is significant
+```
+
+Overall, we have shown that all three predictor variables are significant in determining the change in rate of active infections.
+
+
+
+
 
 # Sensitivity analysis 
 
@@ -180,7 +284,6 @@ fitted <- as.numeric(covid_by_days$delta_infec_07ma - residuals(country_plm))
 plot(fitted,residuals(country_plm),bty='n',xlab='Fitted values', ylab='Residuals',main='Residuals vs. Fitted values')
 lines(smooth.spline(fitted,residuals(country_plm), spar=1.3), col=2)
 abline(h=0,col='red',lty='dashed')
-
 ###### Test for normality #######
 qqnorm(residuals(country_plm), main = "QQ plot of residuals")
 qqline(residuals(country_plm), col = "red")
@@ -198,6 +301,89 @@ par(mfrow=c(1,1))
 ```
 
 ## Effect of policy strictness on infectious population growth rate
+### Model Assumptions and Justifications
+The assumptions for this model are as follows:
+
+(1) All $x_{1,ct}$ and $x_{2,ct}$ are identically and independently distributed (i.i.d).
+
+(2) Perfect multicollinearity within predictor variables do not exist.
+
+(3) The error term $u_{ct}$ has conditional mean zero, ie. $E[u_{ct} | {\rm ]$
+
+(4) Homocedasticity (constant variance) of the response variable $\Delta y_{ct}$.
+```{r}
+par(mfrow = c(1,2))
+fitted = as.vector(model$model[[1]] - model$residuals)
+res = as.vector(model$residuals)
+plot(fitted, res, main = "Residuals vs Fitted Values",
+     xlab = "Fitted values", ylab = "Residuals")
+lines(smooth.spline(fitted,res, spar=1.5), col=2)
+abline(h=0,col='red',lty='dashed')          # --- homocedasticity achieved + error term has zero mean
+
+qqnorm(res, main = "Normal Q-Q Plot of Residuals")
+qqline(res)                                 # --- residuals normally distributed
+```
+
+Assumptions (3) and (4) have been easily satisfied as shown in the plots above. In the residuals vs fitted values plot, we observe that the data is randomly distributed with no particular pattern, and that they are centered around mean zero. This satisfies the homocedasticity (constant variance) and zero mean constraint of the error term. Additionally, we also observe from the Q-Q plot that the residuals are distributed normally. As for assumption (2), multicollinearity can be checked by calculating the variance inflation factor (VIF) of the predictor variables. Specifically, The VIF of the $k$th predictor, denoted as $VIF_k$, is defined as 
+$$
+VIF_k = \frac{1}{1-R_k^2}
+$$
+where $R_k^2$ is the coefficient of multiple determination when the predictor variable $X_k$ is regressed onto the rest of the $X$ variables. The VIF values of each predictor is shown in the table below. Since each $VIF_k$ values are close to 1, we conclude that there is no issue of multicollinearity. 
+```{r}
+model.pool = plm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07 + lag_delta_infec_07ma, data = covid_model.d7,
+               index = c("Country", "Date_reported"), model = "pooling")
+tt = as.data.frame(car::vif(model.pool))
+rownames(tt) = c("Stay-home restriction at t-14",
+                 "Change in stay-home restriction at t-14",
+                 "Change in rate of active infections at t-14")
+tt                                                  # --- small VIFs, no multicollinearity
+```
+
+On the other hand, assumption (1) cannot be satisfied by this model. This is because the predictor variables such as the stay-at-home restrictions or the policy changes are not i.i.d. distributed, as each of these entity are dependent on their previous values.
+
+### Model Diagnostics
+
+The following are some model diagnostics that were considered for this analysis:
+
+(1) Test for influential outliers
+
+(2) Test for fixed effects vs random effects 
+```{r}
+# test for ols vs fixed effects
+model.ols = lm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07 + lag_delta_infec_07ma, data = covid_model.d7)
+pFtest(model, model.ols)                  # --- reject null, fixed-effects better
+
+# test for ols vs random effects
+plmtest(model.pool, type = c("bp"))       # --- reject null, random-effects better
+
+# test for fixed vs random effects (requires hacky fix)
+model.random = plm(delta_infec_07ma ~ lag_stay_home + lag_delta_infec_07ma, 
+                   data = covid_model.d7, index = c("Country", "Date_reported"), model = "random")
+model.fixed2 = plm(delta_infec_07ma ~ lag_stay_home + lag_delta_infec_07ma,
+                   data = covid_model.d7, index = c("Country", "Date_reported"), model = "within")
+phtest(model.fixed2, model.random)        # --- fail to reject null, random-effects better
+```
+
+(3) Test for time fixed effects
+```{r}
+model.time = plm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07 + lag_delta_infec_07ma +
+                   Date_reported, data = covid_model.d7,
+                 index = c("Country", "Date_reported"), model = "within")
+pFtest(model.time, model)                 # --- reject null, use time-effects
+plmtest(model, c("time"), type = c("bp")) # --- fail to reject null, no need for time-effects
+```
+
+(4) Test for cross-sectional dependence
+```{r}
+pcdtest(model, test = c("lm"))        # --- there is cross sectional dependence
+```
+
+For (1), a test for potential outliers is not necessary since our predictor variables are either categorical or have the same range as the response variable.
+
+
+
+
+
 
 
 # Causal interpretation 
