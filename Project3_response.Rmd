@@ -30,7 +30,7 @@ covid <- covid %>%
                                  "South-East Asia" = "SEARO"))
 
 # stay-at-home dataset
-home = read_csv("stay-at-home-covid.csv")             # change filename/directory if necessary
+home = read_csv("data/stay-at-home-covid.csv")             # change filename/directory if necessary
 home$stay_home_requirements = as.factor(home$stay_home_requirements)
 home[which(home$Entity == "United Kingdom"), "Entity"] = "UK"
 
@@ -97,11 +97,6 @@ covid_model.d7 <- covid_model.d7 %>%
          lag_infec_03ma = zoo:: rollmean(lag_infectious,k=3,fill=NA)) %>%
   dplyr::ungroup()
 
-covid_model.d7 <- covid_model.d7 %>% 
-  filter(covid_model.d7$Date_reported>"2020-09-30" & 
-           covid_model.d7$Date_reported<"2020-12-01")
-range(covid_model.d7$Date_reported) # 2020-10-01 to 2020-11-30
-
 # Calculate response variable: delta_infectious
 covid_model.d7 <- covid_model.d7 %>% 
   mutate(delta_infectious = 100*New_infectious/lag_infectious, 
@@ -109,6 +104,11 @@ covid_model.d7 <- covid_model.d7 %>%
          delta_infec_05ma = 100*New_infec_05ma/lag_infec_05ma, 
          delta_infec_03ma = 100*New_infec_03ma/lag_infec_03ma,
          lag_delta_infec_07ma = lag(delta_infec_07ma, 14))
+
+covid_model.d7 <- covid_model.d7 %>% 
+  filter(covid_model.d7$Date_reported>"2020-09-30" & 
+           covid_model.d7$Date_reported<"2020-12-01")
+range(covid_model.d7$Date_reported) # 2020-10-01 to 2020-11-30
 
 # plot of delta_infectious vs. date
 plot(covid_model.d7$Date_reported,covid_model.d7$delta_infec_05ma, 

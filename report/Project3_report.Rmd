@@ -81,6 +81,7 @@ covid_by_days$days_since_start <- as.factor(covid_by_days$days_since_start)
 infection_country_bydays = covid_by_days %>% ggplot(aes(x=days_since_start,y=delta_infec_07ma, group=Country,color=Country))+geom_line()+labs(x = "Days since start of stay-at-home order", y = "Growth rate of infectous population")+ggtitle("Growth rate of infectious population before and after the start of stay-at-home order") +theme(plot.title = element_text(size = 11,face = "bold"),legend.text = element_text(size=10))
 ggplotly(infection_country_bydays,tooltip = c("x","colour","y"))
 ```
+
 ### Model justification
 As observed in the world trend of daily cases of Covid-19, there was a peak between October and November in many countries, including the five European countries that we focused on in this project. In response to such skyrocketing numbers of cases, all five contries issued stay-at-home orders around that period of time in hope to contain the spread of Covid-19. It was also noticed that there was a delay between the order starting date and the date when daily new cases began to decrease, which was expected since most of policies would have a lagged effect. _In order to understand the temporal dynamics of the stay-at-home order, we measured the policy effects on growth rate of infectious population as a function of time since the order started._ Number of days since the order started was treated as a categorical variable with each day as a level. We looked at the period of 14 days before and 28 days after the order came into effect. The estiamted coefficients could be considered as the change in infectious population growth rate due to the stay-at-home order without varying implementation time.
 
@@ -148,6 +149,7 @@ ggplot(inference, aes(x=Days_since_start,y=Estimate)) +
   labs(x = "Days since stay-at-home order",y = "\u0394 Growth in infectious population")+ ggtitle("Change in growth rate of infectious population with varying implementation time of stay-at-home order") + theme(plot.title = element_text(size = 12, face="bold")) +
   geom_vline(xintercept = c(0,13), linetype = "dashed",color = "red")
 ```
+
 * The dashed red lines dictated D-day of the policy and 13 days after its implementation when its effect on reducing growth rate of infectious population firstly became significant.
 
 
@@ -217,7 +219,7 @@ On the other hand, a change in policy on the stay-at-home restriction 2-3 weeks 
 
 Meanwhile, it is also important to note that the change in rate of active infections are also affected by its own value from 2 weeks prior. Its coefficient estimate of 0.36 suggests that a country's change in rate of active infections will continuously increase if no stay-at-home policies were put in place.
 
-## Siginificance of predictor variables
+### Siginificance of predictor variables
 An important aspect when interpreting the fitted model above is to ensure that the coefficient estimates are significant. In other words, the standard errors of the coefficient estimates should not be so large such that there are no significant evidence that the predictor variables correlate with the change in rate of active infections. To test this, we will use the $F$-test to check the significance of each predictor variable.
 
 * **14-day lagged effect of stay-at-home order ** <br>
@@ -308,11 +310,14 @@ The assumptions for this model are as follows:
 
 (2) Perfect multicollinearity within predictor variables do not exist.
 
-(3) The error term $u_{ct}$ has conditional mean zero, ie. $E[u_{ct} | {\rm ]$
+(3) The error term $u_{ct}$ has conditional mean zero.
 
 (4) Homocedasticity (constant variance) of the response variable $\Delta y_{ct}$.
+
+(5) Influential outliers do not exist.
+
 ```{r}
-par(mfrow = c(1,2))
+par(mfrow = c(2,2))
 fitted = as.vector(model$model[[1]] - model$residuals)
 res = as.vector(model$residuals)
 plot(fitted, res, main = "Residuals vs Fitted Values",
@@ -322,9 +327,20 @@ abline(h=0,col='red',lty='dashed')          # --- homocedasticity achieved + err
 
 qqnorm(res, main = "Normal Q-Q Plot of Residuals")
 qqline(res)                                 # --- residuals normally distributed
+
+x = covid_model.d7[,c("lag_stay_home", "lag_stay_home_diff_07", "lag_delta_infec_07ma")]
+x = as.matrix(x)
+x = as.numeric(x)
+x = matrix(x, ncol = 3)
+H = x %*% solve(t(x) %*% x) %*% t(x)
+cooks = residuals(model)^2/length(coef(model))* diag(H)/(1-diag(H))
+h = diag(H)
+plot(h, cooks, type = "h", main = "Cook's distance vs Leverage values",
+     xlab = "Leverage", ylab = "Cook's Distance")
+
 ```
 
-Assumptions (3) and (4) have been easily satisfied as shown in the plots above. In the residuals vs fitted values plot, we observe that the data is randomly distributed with no particular pattern, and that they are centered around mean zero. This satisfies the homocedasticity (constant variance) and zero mean constraint of the error term. Additionally, we also observe from the Q-Q plot that the residuals are distributed normally. As for assumption (2), multicollinearity can be checked by calculating the variance inflation factor (VIF) of the predictor variables. Specifically, The VIF of the $k$th predictor, denoted as $VIF_k$, is defined as 
+Assumptions (3), (4), and (5) have been easily satisfied as shown in the plots above. In the residuals vs fitted values plot, we observe that the data is randomly distributed with no particular pattern, and that they are centered around mean zero. This satisfies the homocedasticity (constant variance) and zero mean constraint of the error term. Additionally, we also observe from the Q-Q plot that the residuals are distributed normally. The Cook's distance vs Leverage plot shows a maximum Cook's Distance value of a mere 0.12, suggesting outliers did not exist in this model. As for assumption (2), multicollinearity can be checked by calculating the variance inflation factor (VIF) of the predictor variables. Specifically, The VIF of the $k$th predictor, denoted as $VIF_k$, is defined as 
 $$
 VIF_k = \frac{1}{1-R_k^2}
 $$
@@ -345,10 +361,8 @@ On the other hand, assumption (1) cannot be satisfied by this model. This is bec
 
 The following are some model diagnostics that were considered for this analysis:
 
-(1) Test for influential outliers
-
-(2) Test for fixed effects vs random effects 
-```{r}
+(1) Test for fixed effects vs random effects 
+```{r, include = FALSE}
 # test for ols vs fixed effects
 model.ols = lm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07 + lag_delta_infec_07ma, data = covid_model.d7)
 pFtest(model, model.ols)                  # --- reject null, fixed-effects better
@@ -364,8 +378,8 @@ model.fixed2 = plm(delta_infec_07ma ~ lag_stay_home + lag_delta_infec_07ma,
 phtest(model.fixed2, model.random)        # --- fail to reject null, random-effects better
 ```
 
-(3) Test for time fixed effects
-```{r}
+(2) Test for time fixed effects
+```{r, include=FALSE}
 model.time = plm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07 + lag_delta_infec_07ma +
                    Date_reported, data = covid_model.d7,
                  index = c("Country", "Date_reported"), model = "within")
@@ -373,15 +387,35 @@ pFtest(model.time, model)                 # --- reject null, use time-effects
 plmtest(model, c("time"), type = c("bp")) # --- fail to reject null, no need for time-effects
 ```
 
-(4) Test for cross-sectional dependence
-```{r}
+(3) Test for cross-sectional dependence
+```{r, include=FALSE}
 pcdtest(model, test = c("lm"))        # --- there is cross sectional dependence
 ```
 
-For (1), a test for potential outliers is not necessary since our predictor variables are either categorical or have the same range as the response variable.
+For (1), the following hypothesis were computed using the F-test and the Breusch-Pagan Lagrange Multiplier (LM) test respectively to ensure that the ordinary least squares (OLS) model is not the best model.
+$$
+{\rm Test \ 1:} \ H_0: {\rm OLS \ model \ is \ a \ better \ fit \ \ vs \ } H_a: {\rm Fixed-effect \ model \ is \ a \ better \ fit}
+$$
+$$
+{\rm Test \ 2:} \ H_0: {\rm OLS \ model \ is \ a \ better \ fit \ \ vs \ } H_a: {\rm Random-effect \ model \ is \ a \ better \ fit}
+$$
+As both p-values were close to 0, we conclude that the OLS model is not a good fit for our data. We then moved on to check whether the fixed-effect model or the random-effect model gives us a better fit using Hausman Test with the following hypothesis:
+$$
+H_0: {\rm Random-effects \ model \ is \ a \ better \ fit \ \ vs \ } H_a: {\rm Fixed-effects \ model \ is \ a \ better \ fit}
+$$
+Here we obtained a p-value of 0.68, suggesting that $H_0$ cannot be rejected and therefore a random effects model is a better fit. However, it is important to note that setting countries as random entities would reduce the explainability of our current model.
 
+To check for (2), we once again used the Breusch-Pagan LM test with the following hypothesis:
+$$
+H_0: {\rm Time-effects \ is \ significant \ \ vs \ } H_a: {\rm Time-effects \ is \ insignificant}
+$$
+The p-value obtained in this test is less than 0.002. Using a threshold $\alpha < 0.05$, we reject $H_0$ and conclude that our current model is a better fit.
 
-
+Lastly, it is important to test for cross-sectional dependence (3) in our model as we previously assumed that entities within each country are not correlated. Once again, using the Breusch-Pagan LM test with the following hypothesis, we obtained an extremely small p-value which suggests that cross-sectional dependence exist within our model.
+$$
+H_0: {\rm No \ cross-sectional \ dependence \ \ vs \ } H_a: {\rm Cross-sectional \ dependence \ exist}
+$$
+Overall, we managed to satisfy most of the assumptions of a fixed-effect model, except for the fact that a random=effects model is a better fit and cross-sectional dependence exist within our model. These will be discussed in a later section.
 
 
 
@@ -396,7 +430,9 @@ For (1), a test for potential outliers is not necessary since our predictor vari
 
 
 # Reference {-}
-
+[1] Fowler, J., Hill, S., Levin, R., Obradovich, N..(2020) The Effect of Stay-at-Home Orders on COVID-19 Infections on the United States. [medrxiv.org](https://www.medrxiv.org/content/10.1101/2020.04.13.20063628v2.full) <br>
+[2] Torres-Reyna, O. (2010) Getting Started in Fixed/Random Effects Models using R. Lecture slides. [dss.princeton.edu](https://dss.princeton.edu/training/Panel101R.pdf) <br>
+[3] Schmidheiny, K. (2020) Panel Data: Fixed and Random Effects. Lecture Notes. [schmidheiny.name](https://www.schmidheiny.name/teaching/panel2up.pdf)
 
 # Session info {-}
 
