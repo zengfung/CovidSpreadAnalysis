@@ -124,9 +124,9 @@ country_plm <- plm(delta_infec_07ma~days_since_start,data = covid_by_days,index 
 coef = country_plm$coefficients
 se = sqrt(diag(country_plm$vcov))
 alpha = 0.05
-t_stat = qt(1-alpha/2, country_plm$df.residual,lower.tail = FALSE)
-CI_lower = coef - t_stat*se
-CI_upper = coef + t_stat*se
+cval = qt(alpha/2, country_plm$df.residual,lower.tail = FALSE)
+CI_lower = coef - cval*se
+CI_upper = coef + cval*se
 inference <- data.frame(Days_since_start = c(-14:-2,0:28), Estimate = coef, CI_lower = CI_lower, CI_upper = CI_upper)
 
 summary = inference[14:42,]
@@ -168,6 +168,8 @@ pFtest(country_plm, plm_pooling) #-------- p<2.2e-16, indicating significant ind
 ```
 
 First, the necessity of adopting a individual fixed effect model was tested by comparing the current model with a pooling model where all countries' data were pooled together. The null hypothesis that the two models are indistinguishable was rejected (p<0.05), indicating that it was necessary to use a fixed effect model accounting for country-specific factors.
+
+The calculated $R^2$ and adjusted $R^2$ for the model were 0.74 and 0.68 respectively. 
 
 The diagnostics plots below tested the homocedasticity and normality assumption, as well as the presence of outliers. The residuals vs. fitted value plot showed that the residuals were mostly evenly distributed around zero but with a slightly quadratic pattern. QQ plot confirmed the normality assumption was fulfilled. And the Cook's plot showed that no observation had cook's distance larger than 1, indicating that there was no influential cases.
 
