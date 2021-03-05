@@ -361,7 +361,7 @@ fig <- fig %>% add_pie(data =Germany_pie, labels = ~policy, values = ~stay_home_
           name = "Germany", domain = list(x = c(0.4, 0.7), y = c(0, 0.3)))
 fig <- fig %>% add_pie(data =United_Kingdom_pie, labels = ~policy, values = ~stay_home_requirements,
           name = "UK", domain = list(x = c(0.7,1), y = c(0, 0.3)))
-fig <- fig %>% layout(title = "Pie Charts of stay-at-home requirements", showlegend = T,shareY = F,titleY=T,
+fig <- fig %>% layout(title = "Figure 5:Pie Charts of stay-at-home requirements", showlegend = T,shareY = F,titleY=T,
          xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = T),
          yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = T),
          annotations = list(x = c(.08, .62, .08, .5, 0.8),
@@ -377,7 +377,7 @@ fig
 ```
 
 
-From figures 3 and 4, the daily new deaths/cases of each country, we can barely see the impact of stay-at-home policy while looking at daily new cases or daily new death for countries and time we selected. We can observe that daily new death/case increases while after the policy was published. Thus, to investigate whether the policy works, instead of daily new cases or deaths, we can look at the percent change in infectious populations (delta infectious). Figure 5 shows the daily delta infectious for each country, and this delta infectious decrease in general and were negative after Nov 15, which indicates quarantine had an impact. 
+From figures 3 and 4, the daily new deaths/cases of each country, we can barely see the impact of stay-at-home policy while looking at daily new cases or daily new death for countries and time we selected. We can observe that daily new death/case increases while after the policy was published. Thus, to investigate whether the policy works, instead of daily new cases or deaths, we can look at the percent change in infectious populations (delta infectious). Figuer 5 shows stay-at-home plicy change for all five countries. Figure 6 shows the daily delta infectious for each country, and this delta infectious decrease in general and were negative after Nov 15, which indicates quarantine had an impact. 
 
 ```{r delta_infectious-setup, include=F}
 Fi_bar <- France %>% plot_ly(x=~Date_reported,y=~delta_infectious,color = ~stay_home_requirements) %>%
@@ -417,7 +417,7 @@ Pi_bar <- Poland %>% plot_ly(x=~Date_reported,y=~delta_infectious,color = ~stay_
                       zeroline = FALSE))
 ```
 ```{r delta_infectious,echo=FALSE,fig.height=5 , fig.width=10}
-subplot( Fi_bar, UKi_bar, Gi_bar, Ii_bar, Pi_bar, nrows = 5,shareX = T, shareY = F, titleX = T,titleY=T) %>% layout(title = "Figure 5: Daily percent change in infectious populatio for each country",showlegend=FALSE,showlegend2=FALSE)
+subplot( Fi_bar, UKi_bar, Gi_bar, Ii_bar, Pi_bar, nrows = 5,shareX = T, shareY = F, titleX = T,titleY=T) %>% layout(title = "Figure 6: Daily percent change in infectious populatio for each country",showlegend=FALSE,showlegend2=FALSE)
 ```
 
 # Inferential analysis 
