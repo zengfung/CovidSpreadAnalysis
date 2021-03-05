@@ -318,6 +318,64 @@ subplot( F_bar, UK_bar, G_bar, I_bar, P_bar, nrows = 5,shareX = T, shareY = F, t
 subplot( F_barc, UK_barc, G_barc, I_barc, P_barc, nrows = 5,shareX = T, shareY = F, titleX = T,titleY=T) %>% layout(title = "Figure 4: Daily new cases of each country",showlegend=FALSE,showlegend2=FALSE)
 
 ```
+```{r pie chart-setup,include=F}
+France_pie <- liela_pie %>% filter(Country=="France") %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+  `0` = "No measures",
+  `1` = "recommend not leaving house",
+  `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
+  `3` = "Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time"
+))
+United_Kingdom_pie <- liela_pie %>% filter(Country=="United_Kingdom")  %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+  `0` = "No measures",
+  `1` = "recommend not leaving house",
+  `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
+  `3` = "Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time"
+))
+Germany_pie <- liela_pie %>% filter(Country=="Germany")  %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+  `0` = "No measures",
+  `1` = "recommend not leaving house",
+  `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
+  `3` = "Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time"
+))
+Italy_pie <- liela_pie %>% filter(Country=="Italy")  %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+  `0` = "No measures",
+  `1` = "recommend not leaving house",
+  `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
+  `3` = "Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time"
+))
+Poland_pie <- liela_pie %>% filter(Country=="Poland")%>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+  `0` = "No measures",
+  `1` = "recommend not leaving house",
+  `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
+  `3` = "Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time"
+))
+
+fig <- plot_ly()
+fig <- fig %>% add_pie(data = France_pie, labels = ~policy, values = ~stay_home_requirements,
+          name = "France", domain = list(x = c(0, 0.3), y = c(0.4, 0.7)))
+fig <- fig %>% add_pie(data = Italy_pie, labels = ~policy, values = ~stay_home_requirements,
+          name = "Italy", domain = list(x = c(0.4, 1), y = c(0.4, 0.7)))
+fig <- fig %>% add_pie(data =Poland_pie, labels = ~policy, values = ~stay_home_requirements,
+          name = "Poland", domain = list(x = c(0, 0.3), y = c(0, 0.3)))
+fig <- fig %>% add_pie(data =Germany_pie, labels = ~policy, values = ~stay_home_requirements,
+          name = "Germany", domain = list(x = c(0.4, 0.7), y = c(0, 0.3)))
+fig <- fig %>% add_pie(data =United_Kingdom_pie, labels = ~policy, values = ~stay_home_requirements,
+          name = "UK", domain = list(x = c(0.7,1), y = c(0, 0.3)))
+fig <- fig %>% layout(title = "Pie Charts of stay-at-home requirements", showlegend = T,shareY = F,titleY=T,
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = T),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = T),
+         annotations = list(x = c(.08, .62, .08, .5, 0.8),
+                            y = c(.8, .8, .3, .3,0.3),
+                            text = c("France","Italy","Poland","Germany","UK"),
+                            xref = "papper",
+                            yref = "papper",
+                            showarrow = F
+                          ))
+```
+```{r pie chart,echo=FALSE,fig.height=5 , fig.width=10}
+fig
+```
+
 
 From figures 3 and 4, the daily new deaths/cases of each country, we can barely see the impact of stay-at-home policy while looking at daily new cases or daily new death for countries and time we selected. We can observe that daily new death/case increases while after the policy was published. Thus, to investigate whether the policy works, instead of daily new cases or deaths, we can look at the percent change in infectious populations (delta infectious). Figure 5 shows the daily delta infectious for each country, and this delta infectious decrease in general and were negative after Nov 15, which indicates quarantine had an impact. 
 
