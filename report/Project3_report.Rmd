@@ -29,11 +29,12 @@ library(gridExtra)
 library(scales)
 library(lubridate)
 library(ggplot2)
+library(plotly)
 ```
 ```{r covid_window,include=F}
 covid <- read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv")
 covid[which(covid$Country == "The United Kingdom"), "Country"] = "United_Kingdom"
-write_csv(covid,file="WHO-Covid-19-backup.csv")
+# write_csv(covid,file="WHO-Covid-19-backup.csv")
 
 # filter out countries in "Other" WHO regions
 covid <- covid %>% 
@@ -105,6 +106,7 @@ covid_model.d7 <- covid_model.d7 %>%
          delta_infec_07ma = 100*New_infec_07ma/lag_infec_07ma, 
          delta_infec_05ma = 100*New_infec_05ma/lag_infec_05ma, 
          delta_infec_03ma = 100*New_infec_03ma/lag_infec_03ma)
+write_csv(covid_model.d7,file="covid_model.d7.csv")
 ```
 ```{r liela,include=F}
 liela <- covid_model.d7 %>% select(Date_reported,Country,New_cases,Cumulative_cases,New_deaths,Cumulative_deaths,stay_home_requirements,delta_infectious,delta_infec_07ma,stay_home_requirements) %>% mutate(rate=New_deaths/Cumulative_cases)
@@ -145,7 +147,7 @@ subplot( case, death, case_rate, nrows = 3,shareX = T, shareY = F, titleX = T, t
 From figure 1, the world average daily new case/new death/case mortality, we can see that though the daily case mortality remains at a steady low level after June, the daily new death has a jump from Oct to Nov, and the daily new case has a sharp increase in Oct. Besides, since many countries announced the stay-at-home policy between Oct and Nov, we would narrow the time of interest into this period - Oct and Nov.
 
 ```{r continent setup,include=F}
-continent <- abc %>% 
+continent <- covid %>% 
   filter(WHO_region != "Other") %>% 
   mutate(WHO_region = fct_recode(WHO_region,
                                  "Eastern Mediterranean"="EMRO",
@@ -304,7 +306,7 @@ P_barc <- Poland %>% plot_ly(x=~Date_reported,y=~New_cases,color = ~stay_home_re
 ```
 ```{r new death/cases,echo=FALSE,fig.height=5 , fig.width=10}
 subplot( F_bar, UK_bar, G_bar, I_bar, P_bar, nrows = 5,shareX = T, shareY = F, titleX = T,titleY=T) %>% layout(title = "Figure 3: Daily new death of each country",showlegend=FALSE,showlegend2=FALSE)
-subplot( F_barc, UK_barc, G_barc, I_barc, P_barc, nrows = 5,shareX = T, shareY = F, titleX = T,titleY=T) %>% layout(title = "Figure 3: Daily new cases of each country",showlegend=FALSE,showlegend2=FALSE)
+subplot( F_barc, UK_barc, G_barc, I_barc, P_barc, nrows = 5,shareX = T, shareY = F, titleX = T,titleY=T) %>% layout(title = "Figure 4: Daily new cases of each country",showlegend=FALSE,showlegend2=FALSE)
 
 ```
 
@@ -366,15 +368,15 @@ library(knitr)
 library(broom)
 # import data
 # covid data
-setwd('..')
-covid_model.d7 = read.csv("./data/who_new_response.csv", header = TRUE)
+#setwd('..')
+covid_model.d7 = read.csv("who_new_response.csv", header = TRUE)
 # stay-at-home data
-home = read_csv("data/stay-at-home-covid.csv")  
+home = read_csv("stay-at-home-covid.csv")  
 ```
 ```{r pre-processing}
 # data pre-processing
 # filter data
-home <- home %>% filter(Entity %in% c("Germany", "United Kingdom", "France", "Italy", "Poland") & Date>"2020-09-30" & Date<"2020-12-01")
+home <- home %>% filter(Entity %in% c("Germany", "United_Kingdom", "France", "Italy", "Poland") & Date>"2020-09-30" & Date<"2020-12-01")
 # find the date that each country tightened their stay-at-home order
 ind = home %>% group_by(Entity) %>% mutate(change= stay_home_requirements-lag(stay_home_requirements,1))
 start_date = ind[which(ind$change!=0),]
