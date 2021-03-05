@@ -232,6 +232,20 @@ $$\Delta y_{ct} = \frac{I_{ct} - I_{c,t-1}}{I_{c,t-1}} = \frac{(y_{ct} - y_{c(t-
 was used as the response variable to reflect the spread of Covid-19.
 
 # Descriptive analysis 
+
+## Summary Statistics of Variables in WHO Data set
+```{r, warning=FALSE, message=FALSE}
+library(pander)
+WHO_data<-read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv")
+WHO_data$Case_Mortality_new<- WHO_data$New_deaths/WHO_data$New_cases
+WHO_data$Case_Mortality_Cumulitive<- WHO_data$Cumulative_deaths/WHO_data$Cumulative_cases
+WHO_data$Date_reported<-as.Date(WHO_data$Date_reported)
+SUMM.data<-summary(WHO_data)
+pander(SUMM.data)
+```
+
+## Exploratory Data Analysis
+
 Our question of interest is related to stay at home policy. Hence, we would like to see what happens after the policy was announced. 
 
 ```{r new death/cases-setup, include=FALSE}
