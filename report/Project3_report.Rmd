@@ -16,7 +16,7 @@ knitr::opts_chunk$set(warning = FALSE)
 
 # Abstract 
 
-Coronavirus disease 2019 is a contagious disease that has led to one of the biggest pandemics across the world. THere have been 115 million cases of Covid-19 with 2.5 million deaths. One of the responses by countries has been to issue a stay-at-home mandate which has levels that range from no restrictions to a mandatory curfew. In this study, the stay-at-home mandate with apporiate lag is used to estimate the growth rate of infectious population. The exploratory data analysis showed that the Daily Percent change in infectious population. From the result, it is seen that each of the five countries had an increasing percent change at the beginning of the time interval (October 1st), but over time the daily percent change turned negative. This distribution was the same for all five countries and possibly indicates a negative association between stay-at-home mandate and infectious population. In the inferential analysis, it shown using multiple tests that Fixed effects model was better than random effects and ordinary least squares. We then use propensity scores to test whether the significant variables in the fixed effect model can cause the growth rate of infectious population to change.
+Coronavirus disease 2019 is a contagious disease that has led to one of the biggest pandemics across the world. There has been 115 million cases of Covid-19 with 2.5 million deaths so far. One of the responses by countries has been to issue a stay-at-home mandate which has levels that range from no restrictions to a mandatory curfew. In this study, the stay-at-home mandate with apporiate lag is used to estimate the growth rate of infectious population. The exploratory data analysis showed that the Daily Percent change in infectious population. From the result, it is seen that each of the five countries had an increasing percent change at the beginning of the time interval (October 1st), but over time the daily percent change turned negative. This distribution was the same for all five countries and possibly indicates a negative association between stay-at-home mandate and infectious population. In the inferential analysis, it shown using multiple tests that Fixed effects model was better than random effects and ordinary least squares. We then use propensity scores to test whether the significant variables in the fixed effect model can cause the growth rate of infectious population to change.
 
 # Introduction
 
@@ -149,7 +149,7 @@ case_rate <- rate %>% plot_ly(x=~Date_reported,y=~case_mortality,type = 'bar',co
 subplot( case, death, case_rate, nrows = 3,shareX = T, shareY = F, titleX = T, titleY = T) %>% layout(title = "Figure 1: World average daily new case/new death/case mortality", showlegend=FALSE,showlegend2=FALSE)
 ```
 
-From figure 1, the world average daily new case/new death/case mortality, we can see that though the daily case mortality remains at a steady low level after June, the daily new death has a jump from Oct to Nov, and the daily new case has a sharp increase in Oct. Besides, since many countries announced the stay-at-home policy between Oct and Nov, we would narrow the time of interest into this period - Oct and Nov.
+From figure 1, the world average daily new case/new death/case mortality, we can see that though the daily case mortality remains at a steady low level after June, the daily new death has a jump from Oct to Nov, and the daily new case has a sharp increase in October. Besides, since many countries announced the stay-at-home policy between Oct and Nov, we would narrow the time of interest into this period - October and November.
 
 ```{r continent setup,include=F}
 continent <- covid %>% 
@@ -183,7 +183,7 @@ subplot( con_case,con_death, nrows = 2,shareX = T, shareY = F, titleX = T, title
 
 ```
 
-Figure 2 shows the average daily new case/new death of each WHO Region. For different regions, the daily new cases or new death are relatively different. To gain a more robust result, we would focus our analysis on one region rather than the whole world. Thus, region Europe was selected, and countries that fit our inclusion criteria were included in this analysis. To sum up, we narrow our analysis to five countries - UK, Poland, France, Italy, Germany between Oct and Nov. <br>
+Figure 2 shows the average daily new case/new death of each WHO Region. For different regions, the daily new cases or new death are relatively different. To gain a more robust result, we would focus our analysis on one region rather than the whole world. Thus, region Europe was selected, and countries that fit our inclusion criteria were included in this analysis. To sum up, we narrow our analysis to five countries - UK, Poland, France, Italy, Germany between October and November. <br>
 
 The five European countries were identified as being matched on comorbidities as well as similarity on transmission based on lower variability in enforcing and implementing mandates on social distancing. Another reason these five countries were chosen because of similarity on demographics like race and ethnicity [10]. Both of which have been shown to have an effect on Covid-19. Furthermore, data from October 1st to November 30th was selected based on the distribution of similarity in COVID-19 cases, as well as the non-availability of COVID-19 vaccines during this period for these countries. Further, there were fewer mutations of the virus till this timepoint [11].<br>
 There are two primary motivations of this project. <br>
@@ -198,7 +198,7 @@ There were two major objectives of the current project:
  
 # Background 
 ## Target population
-During October and November 2020, daily reported cases in Americas and Europe skyrocketed. In response to such rapid increase in infected cases, many countries strengthened their stay-at-home order as one of the acts to control the spread of Covid-19. The question of interest is the effect of such policy response on containing the spread of disease. Admittedly, there are many factors other than the stay-at-home order that could affect the spreading rate, especially there were big regional differences among countries across the world, such as weather, economic status, demographics, medical conditions, and other Covid-19 related policies. Also, not all the regions had such peaks in Covid-19 cases as observed in Americas and Europe. In order to establish a causal inference of stay-at-home order on Covid-19 spread, we would like to target countries with similar geographic locations, and experienced similar total number and trends of Covid-19 cases during October to November 2020. Given such consideration, we decided to look at the top five European countries with population density over 100/$km^2$ and land area over 100,000 $mi^2$. Sine we were concerned about the spread of Covid-19, it was reasonabl to focus on countries with comparable population density as well as total number of cases. _Using such criteria, the five countries we focused our analysis on are: Germany, UK, France, Italy, and Poland._ All five countries made some changes to their stay-at-home policy during the period between October 1 and November 31,2020.
+During October and November 2020, daily reported cases in Americas and Europe skyrocketed. In response to such rapid increase in infected cases, many countries strengthened their stay-at-home order as one of the acts to control the spread of Covid-19. The question of interest is the effect of such policy response on containing the spread of disease. Admittedly, there are many factors other than the stay-at-home order that could affect the spreading rate, especially there were big regional differences among countries across the world, such as weather, economic status, demographics, medical conditions, and other Covid-19 related policies. Also, not all the regions had such peaks in Covid-19 cases as observed in Americas and Europe. In order to establish a causal inference of stay-at-home order on Covid-19 spread, we would like to target countries with similar geographic locations, and experienced similar total number and trends of Covid-19 cases during October to November 2020. Given such consideration, we decided to look at the top five European countries with population density over 100/km$^2$ and land area over 100,000 mi$^2$. Since we were concerned about the spread of Covid-19, it was reasonable to focus on countries with comparable population density as well as total number of cases. _Using such criteria, the five countries we focused our analysis on are: Germany, UK, France, Italy, and Poland._ All five countries made some changes to their stay-at-home policy during the period between October 1 and November 31,2020.
 
 ## Data
 Contry level daily and cumulative Covid-19 cases and deaths data was obtained from the World Health Organization (WHO) website (https://covid19.who.int/WHO-COVID-19-global-data.csv). The country level stay-at-home order information was obtained from "Our World in Data - statistics and research on conronavirus pandemmic" (https://ourworldindata.org/covid-stay-home-restrictions). The source of the data was published by Oxford COVID-19 government response tracker and was maintained up-to-date. 
@@ -213,8 +213,8 @@ The predictor "stay-at-home order" is a categorical variable with four levels:
 
 None of the country in our target population had the most strict level "3" measure.
 
-### Respnose variable
-The spread of a disease is an exponential process. The classic SIR model in epidemiology describes the process as follows: in a population (N), each of the infected ones (I) had the potential to infect one or more susceptible people (S) before they recover or die (R). N = I(t) + S(t) + R(t), assuming people who have recovered will be immuned. Based on this model, for a country c at time t, the growth rate of infectious population is defined as: $$dI_{ct}/dt = I_{ct} - I_{c,t-1} = \beta I_{c,t-1} \frac{S_ct}{N_ct} - \gamma I_{c,t-1}$$
+### Response variable
+The spread of a disease is an exponential process. The classic SIR model in epidemiology describes the process as follows: in a population (N), each of the infected ones (I) had the potential to infect one or more susceptible people (S) before they recover or die (R). At any time $t$, we have $N = I(t) + S(t) + R(t)$, assuming people who have recovered will be immuned. Based on this model, for a country c at time t, the growth rate of infectious population is defined as: $$dI_{ct}/dt = I_{ct} - I_{c,t-1} = \beta I_{c,t-1} \frac{S_ct}{N_ct} - \gamma I_{c,t-1}$$
 where $\beta$ is the rate of infection, and $\gamma$ is the rate of recovery. Since the total number of people who have been infected was small compared to the whole population, we assumed that $\frac{S_ct}{N_ct} =1$. 
 
 The WHO dataset had information on daily new cases and cumulative cases, but not the number of recoveries, therefore we could not know the exact number of infectious population (I). In order to estimate it, we assumed that it took 7 days for a person to recover from Covid-19, starting from the day it was reported. That is, people who were reported to be positive on day 0 would be removed from the infectious population on day 7. Such an estimate could be not that accurate due to lack of information. Adjutment of this parameter could be done in future study. With this assumption, infectious population could be estimated as:
@@ -512,7 +512,7 @@ where $y_{ct}$ is the number of new cases for country $c$ at time $t$.
 $$
 x_{2,j,ct} = \mathbb{1}_{\{x_{1,i,ct} - x_{1,i',c(t-7)}\}} \ {\rm for } \ i,i' = \{0,1,2\}, j = \{-1, 0, 1, 2\} 
 $$
-Since $x_{2,ct}$ is represented as dummy variables, the case for $x_{2,0,ct}$ is implied by the model when $x_{2,1,ct} = x_{2,2,ct} = x_{2,-1,ct} = 0$.
+where $j = -1$ represents a 1 level relaxation of the stay-at-home orders, $j=0$ represents no change in the stay-at-home orders, while $j=1,2$ represents an increase in strictness of stay-at-home policy by 1 and 2 levels respectively. Since $x_{2,ct}$ is represented as dummy variables, the case for $x_{2,0,ct}$ is implied by the model when $x_{2,1,ct} = x_{2,2,ct} = x_{2,-1,ct} = 0$.
 
 (6) $x_{3,ct}$ is the change in rate of active infections for country $c$ 14 days prior to time $t$, which is a 14-day lag of same measurement of the response variable $\Delta y_{ct}$.
 
@@ -530,9 +530,9 @@ model = plm(delta_infec_07ma ~ lag_stay_home + lag_stay_home_diff_07 +lag_delta_
 tt = as.data.frame(summary(model)$coef)
 rownames(tt) = c("Stay-home restriction at t-14 == 1",
                  "Stay-home restriction at t-14 == 2",
-                 "Change in stay-home restriction at t-14 == +2",
-                 "Change in stay-home restriction at t-14 == -1",
+                 "Change in stay-home restriction at t-14 == 0",
                  "Change in stay-home restriction at t-14 == +1",
+                 "Change in stay-home restriction at t-14 == +2",
                  "Change in rate of active infections at t-14")
 tt
 ```
@@ -544,11 +544,11 @@ colnames(tt) = expression(alpha[c])
 tt
 ```
 
-We can interpret the $\hat \alpha_c$ values above as a growth rate in active infections when there were no stay-at-home policies implemented at all in the previous 2-3 weeks. As we can see that most $\hat \alpha_c$ values are positive (except France), it means that the growth rate of active infections increases significantly in these 4 countries when there are no stay-at-home policies in place. This is especially the case in the UK with its growth rate of more than 4. 
+We can interpret the $\hat \alpha_c$ values above as a growth rate in active infections when there were stay-at-home policies were relaxed to level 0 in the previous 2-3 weeks. As we can see that most $\hat \alpha_c$ values are positive (except France), it means that the growth rate of active infections increases significantly in these 4 countries when there are no stay-at-home policies in place. This is especially the case in the UK with its growth rate of more than 4. 
 
-Based on the results above, it is also obvious to see that a sticter stay-at-home policy results in a larger decrease in rate of growth in active infections. Assuming there are no changes in stay-at-home policies, a level-2 stay-at-home restriction (-8.43) reduces the growth rate of active infections by more than 2 as compared to a level-1 stay-at-home restriction (-6.26).
+Based on the results above, it is also obvious to see that a sticter stay-at-home policy results in a larger decrease in rate of growth in active infections. This linear association is accompanied by a strong $R^2$ and adjusted $R^2$ values of 0.71 and 0.7 respectively. Assuming there are no changes in stay-at-home policies, a level-2 stay-at-home restriction (-8.43) reduces the growth rate of active infections by more than 2 as compared to a level-1 stay-at-home restriction (-6.26).
 
-On the other hand, a change in policy on the stay-at-home restriction 2-3 weeks prior also has a significant impact on the growth rate in active infections. Assuming a country increased its stay-at-home level within the past 2-3 weeks (eg. from level 1 to level 2), we still expect to observe a decreasing growth rate in active infections. For instance, Italy, who wsn't implementing any form of stay-at-home restriction up until mid-October, would expect to observe a decrease in growth rate of active infections by $5.48$(ie. $- 8.43 + 2.95$) in November.
+On the other hand, a change in policy on the stay-at-home restriction 2-3 weeks prior also has a significant impact on the growth rate in active infections. Assuming a country increased its stay-at-home level within the past 2-3 weeks (eg. from level 0 to level 2), we still expect to observe a decreasing growth rate in active infections. For instance, Italy, who wsn't implementing any form of stay-at-home restriction up until mid-October, would expect to observe a decrease in growth rate of active infections by $-1.12$(ie. $- 8.43 + 7.31$) in November.
 
 Meanwhile, it is also important to note that the change in rate of active infections are also affected by its own value from 2 weeks prior. Its coefficient estimate of 0.36 suggests that a country's change in rate of active infections will continuously increase if no stay-at-home policies were put in place.
 
@@ -747,9 +747,7 @@ Lastly, it is important to test for cross-sectional dependence (3) in our model 
 $$
 H_0: {\rm No \ cross-sectional \ dependence \ \ vs \ } H_a: {\rm Cross-sectional \ dependence \ exist}
 $$
-Overall, we managed to satisfy most of the assumptions of a fixed-effect model, except for the fact that a random=effects model is a better fit and cross-sectional dependence exist within our model. These will be discussed in a later section.
-
-
+Overall, we managed to satisfy most of the assumptions of a fixed-effect model, except for the fact that cross-sectional dependence exist within our model, which suggests that the predictors are not entirely independent, which can lead to Type-1 error inflation.
 
 
 # Causal interpretation 

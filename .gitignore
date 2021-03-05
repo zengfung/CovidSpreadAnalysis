@@ -7,6 +7,7 @@
 # ignore stay-at-home.csv
 **stay-at-home-covid.csv
 **WHO-Covid-19-backup.csv
+**report/covid_model.d7.csv 
 
 # ignore HTML files
 **.html
