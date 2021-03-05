@@ -211,11 +211,11 @@ colnames(tt) = expression(alpha[c])
 tt
 ```
 
-We can interpret the $\hat \alpha_c$ values above as a growth rate in active infections when there were no stay-at-home policies implemented at all in the previous 2-3 weeks. As we can see that the $\hat \alpha_c$ values are all positive, it means that the growth rate of active infections increases significantly in all 5 countries when there are no stay-at-home policies in place. This is especially the case in the UK with its growth rate of more than 7. 
+We can interpret the $\hat \alpha_c$ values above as a growth rate in active infections when there were no stay-at-home policies implemented at all in the previous 2-3 weeks. As we can see that most $\hat \alpha_c$ values are positive (except France), it means that the growth rate of active infections increases significantly in these 4 countries when there are no stay-at-home policies in place. This is especially the case in the UK with its growth rate of more than 4. 
 
-Based on the results above, it is also obvious to see that a sticter stay-at-home policy results in a larger decrease in rate of growth in active infections. Assuming there are no changes in stay-at-home policies, a level-2 stay-at-home restriction (-8.43) reduces the growth rate of active infections by more than 2 as compared to a level-1 stay-at-home restriction )-6.26).
+Based on the results above, it is also obvious to see that a sticter stay-at-home policy results in a larger decrease in rate of growth in active infections. Assuming there are no changes in stay-at-home policies, a level-2 stay-at-home restriction (-8.43) reduces the growth rate of active infections by more than 2 as compared to a level-1 stay-at-home restriction (-6.26).
 
-On the other hand, a change in policy on the stay-at-home restriction 2-3 weeks prior also has a significant impact on the growth rate in active infections. Assuming a country increased its stay-at-home level within the past 2-3 weeks (eg. from level 1 to level 2), we still expect to observe a decreasing growth rate in active infections. For instance, Italy, who wsn't implementing any form of stay-at-home restriction up until mid-October, would expect to observe a decrease in growth rate of active infections by $4.07$(ie. $- 8.43 + 4.36$) in November.
+On the other hand, a change in policy on the stay-at-home restriction 2-3 weeks prior also has a significant impact on the growth rate in active infections. Assuming a country increased its stay-at-home level within the past 2-3 weeks (eg. from level 1 to level 2), we still expect to observe a decreasing growth rate in active infections. For instance, Italy, who wsn't implementing any form of stay-at-home restriction up until mid-October, would expect to observe a decrease in growth rate of active infections by $5.48$(ie. $- 8.43 + 2.95$) in November.
 
 Meanwhile, it is also important to note that the change in rate of active infections are also affected by its own value from 2 weeks prior. Its coefficient estimate of 0.36 suggests that a country's change in rate of active infections will continuously increase if no stay-at-home policies were put in place.
 
@@ -328,10 +328,7 @@ abline(h=0,col='red',lty='dashed')          # --- homocedasticity achieved + err
 qqnorm(res, main = "Normal Q-Q Plot of Residuals")
 qqline(res)                                 # --- residuals normally distributed
 
-x = covid_model.d7[,c("lag_stay_home", "lag_stay_home_diff_07", "lag_delta_infec_07ma")]
-x = as.matrix(x)
-x = as.numeric(x)
-x = matrix(x, ncol = 3)
+x = model.matrix(model)
 H = x %*% solve(t(x) %*% x) %*% t(x)
 cooks = residuals(model)^2/length(coef(model))* diag(H)/(1-diag(H))
 h = diag(H)
@@ -340,7 +337,7 @@ plot(h, cooks, type = "h", main = "Cook's distance vs Leverage values",
 
 ```
 
-Assumptions (3), (4), and (5) have been easily satisfied as shown in the plots above. In the residuals vs fitted values plot, we observe that the data is randomly distributed with no particular pattern, and that they are centered around mean zero. This satisfies the homocedasticity (constant variance) and zero mean constraint of the error term. Additionally, we also observe from the Q-Q plot that the residuals are distributed normally. The Cook's distance vs Leverage plot shows a maximum Cook's Distance value of a mere 0.12, suggesting outliers did not exist in this model. As for assumption (2), multicollinearity can be checked by calculating the variance inflation factor (VIF) of the predictor variables. Specifically, The VIF of the $k$th predictor, denoted as $VIF_k$, is defined as 
+Assumptions (3), (4), and (5) have been easily satisfied as shown in the plots above. In the residuals vs fitted values plot, we observe that the data is randomly distributed with no particular pattern, and that they are centered around mean zero. This satisfies the homocedasticity (constant variance) and zero mean constraint of the error term. Additionally, we also observe from the Q-Q plot that the residuals are distributed normally. The Cook's distance vs Leverage plot shows a maximum Cook's Distance value of less than 0.2, we conclude that outliers did not exist in this model. As for assumption (2), multicollinearity can be checked by calculating the variance inflation factor (VIF) of the predictor variables. Specifically, The VIF of the $k$th predictor, denoted as $VIF_k$, is defined as 
 $$
 VIF_k = \frac{1}{1-R_k^2}
 $$
