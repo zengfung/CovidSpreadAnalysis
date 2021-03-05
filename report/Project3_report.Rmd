@@ -53,7 +53,8 @@ covid <- covid %>%
                                  "South-East Asia" = "SEARO"))
 
 # stay-at-home dataset
-home =  read_csv("stay-at-home-covid.csv")            # change filename/directory if necessary
+setwd('..')
+home =  read_csv("./data/stay-at-home-covid.csv")            # change filename/directory if necessary
 home$stay_home_requirements = as.factor(home$stay_home_requirements)
 home[which(home$Entity == "United Kingdom"), "Entity"] = "United_Kingdom"
 
@@ -111,7 +112,6 @@ covid_model.d7 <- covid_model.d7 %>%
          delta_infec_07ma = 100*New_infec_07ma/lag_infec_07ma, 
          delta_infec_05ma = 100*New_infec_05ma/lag_infec_05ma, 
          delta_infec_03ma = 100*New_infec_03ma/lag_infec_03ma)
-write_csv(covid_model.d7,file="covid_model.d7.csv")
 ```
 ```{r liela,include=F}
 liela <- covid_model.d7 %>% select(Date_reported,Country,New_cases,Cumulative_cases,New_deaths,Cumulative_deaths,stay_home_requirements,delta_infectious,delta_infec_07ma,stay_home_requirements) %>% mutate(rate=New_deaths/Cumulative_cases)
@@ -377,10 +377,10 @@ library(knitr)
 library(broom)
 # import data
 # covid data
-#setwd('..')
-covid_model.d7 = read.csv("who_new_response.csv", header = TRUE)
+setwd('..')
+covid_model.d7 = read.csv("./data/who_new_response.csv", header = TRUE)
 # stay-at-home data
-home = read_csv("stay-at-home-covid.csv")  
+home = read_csv("./data/stay-at-home-covid.csv")  
 ```
 ```{r pre-processing}
 # data pre-processing
