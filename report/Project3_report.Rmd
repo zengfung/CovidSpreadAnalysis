@@ -20,7 +20,162 @@ knitr::opts_chunk$set(warning = FALSE)
 
 # Introduction
 
+```{r setup, include=FALSE,include=F}
+rm(list=ls())
+library(tidyverse)
+library(dplyr)
+library(zoo)
+library(gridExtra)
+library(scales)
+library(lubridate)
+library(ggplot2)
+```
+```{r covid_window,include=F}
+covid <- read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv")
+covid[which(covid$Country == "The United Kingdom"), "Country"] = "United_Kingdom"
+write_csv(covid,file="WHO-Covid-19-backup.csv")
 
+# filter out countries in "Other" WHO regions
+covid <- covid %>% 
+  filter(WHO_region != "Other") %>% 
+  mutate(WHO_region = fct_recode(WHO_region,
+                                 "Eastern Mediterranean"="EMRO",
+                                 "Europe" = "EURO",
+                                 "Africa" = "AFRO",
+                                 "Western Pacific" = "WPRO",
+                                 "Americas"="AMRO",
+                                 "South-East Asia" = "SEARO"))
+
+# stay-at-home dataset
+home =  read_csv("stay-at-home-covid.csv")            # change filename/directory if necessary
+home$stay_home_requirements = as.factor(home$stay_home_requirements)
+home[which(home$Entity == "United Kingdom"), "Entity"] = "United_Kingdom"
+
+# inner join data
+covid = inner_join(covid, home, 
+                     by = c("Date_reported" = "Date",
+                            "Country" = "Entity"),
+                     keep = FALSE)
+covid = covid[, c("Date_reported", 
+                  "Country_code", 
+                  "Country", 
+                  "WHO_region", 
+                  "New_cases", 
+                  "Cumulative_cases", 
+                  "New_deaths", 
+                  "Cumulative_deaths", 
+                  "stay_home_requirements")]
+
+# Target period of analysis: 2020-10-01 to 2020-11-30
+# Target country: Germany, UK, France, Italy, Poland
+covid_window <- covid %>% 
+  filter(Country %in% c("Germany", "United_Kingdom", "France", "Italy", "Poland") & 
+           Date_reported>"2020-08-15" & 
+           Date_reported<"2020-12-07")
+
+# virus incubation period d = 7
+# I_(t-d-1) = y_(t-1) - y_(t-d-1), where y is cumulative cases
+# delta_I_t = [y_t - y_(t-d)] - [y_(t-1)-y_(t-d-1)] = new_cases_t - new_cases_(t-d)
+covid_model.d7 <- covid_window %>% 
+  group_by(Country) %>% 
+  mutate(New_infectious = New_cases - lag(New_cases,7),
+         lag_infectious = Cumulative_cases - lag(Cumulative_cases,7))
+
+```
+```{r covid_model.d7,include=F}
+# calculating 3, 5, 7-day moving average of new_infectious and cum_infectious
+covid_model.d7 <- covid_model.d7 %>% 
+  group_by(Country) %>% 
+  mutate(New_infec_07ma = zoo:: rollmean(New_infectious,k=7,fill=NA),
+         lag_infec_07ma = zoo:: rollmean(lag_infectious,k=7,fill=NA),
+         New_infec_05ma = zoo:: rollmean(New_infectious,k=5,fill=NA),
+         lag_infec_05ma = zoo:: rollmean(lag_infectious,k=5,fill=NA),
+         New_infec_03ma = zoo:: rollmean(New_infectious,k=3,fill=NA),
+         lag_infec_03ma = zoo:: rollmean(lag_infectious,k=3,fill=NA)) %>%
+  dplyr::ungroup()
+
+covid_model.d7 <- covid_model.d7 %>% 
+  filter(covid_model.d7$Date_reported>"2020-09-30" & 
+           covid_model.d7$Date_reported<"2020-12-01")
+range(covid_model.d7$Date_reported) # 2020-10-01 to 2020-11-30
+
+# Calculate response variable: delta_infectious
+covid_model.d7 <- covid_model.d7 %>% 
+  mutate(delta_infectious = 100*New_infectious/lag_infectious, 
+         delta_infec_07ma = 100*New_infec_07ma/lag_infec_07ma, 
+         delta_infec_05ma = 100*New_infec_05ma/lag_infec_05ma, 
+         delta_infec_03ma = 100*New_infec_03ma/lag_infec_03ma)
+```
+```{r liela,include=F}
+liela <- covid_model.d7 %>% select(Date_reported,Country,New_cases,Cumulative_cases,New_deaths,Cumulative_deaths,stay_home_requirements,delta_infectious,delta_infec_07ma,stay_home_requirements) %>% mutate(rate=New_deaths/Cumulative_cases)
+# New_infectious: Infectious population is defined as people who are infected and have the potential to infect others.
+# delta_infectious: percent change in infectious population on day t
+```
+
+```{r world daily,echo=FALSE,fig.height=5 , fig.width=10}
+abc <- read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv")
+abc <- abc %>%  mutate(rate=New_deaths/Cumulative_cases, month=lubridate::month(Date_reported)) %>% select(-Country_code, WHO_region) # %>% dplyr::filter(!is.na(rate)) 
+world <- abc %>% group_by(Date_reported) %>% summarise(newdeath=mean(New_deaths),newcase=mean(New_cases)) %>% mutate(month=lubridate::month(Date_reported)) %>% mutate(month=as.factor(month)) 
+rate <- abc %>% dplyr::filter(!is.na(rate)) %>% group_by(Date_reported) %>% summarise(case_mortality=mean(rate))%>% mutate(month=lubridate::month(Date_reported)) %>% mutate(month=as.factor(month)) 
+# plotting
+
+death <- world %>% plot_ly(x=~Date_reported,y=~newdeath,type = 'bar',color=~month)%>% 
+  layout(
+         xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         yaxis = list(title = "daily new death",
+                      zeroline = FALSE))
+case <- world %>% plot_ly(x=~Date_reported,y=~newcase,type = 'bar',color=~month)%>% 
+  layout(
+         xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         yaxis = list(title = "daily new case",
+                      zeroline = FALSE))
+case_rate <- rate %>% plot_ly(x=~Date_reported,y=~case_mortality,type = 'bar',color=~month)%>% 
+  layout(
+         xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         yaxis = list(title = "daily case mortality",
+                      zeroline = FALSE))
+
+subplot( case, death, case_rate, nrows = 3,shareX = T, shareY = F, titleX = T, titleY = T) %>% layout(title = "Figure 1: World average daily new case/new death/case mortality", showlegend=FALSE,showlegend2=FALSE)
+
+```
+
+From figure 1, the world average daily new case/new death/case mortality, we can see that though the daily case mortality remains at a steady low level after June, the daily new death has a jump from Oct to Nov, and the daily new case has a sharp increase in Oct. Besides, since many countries announced the stay-at-home policy between Oct and Nov, we would narrow the time of interest into this period - Oct and Nov.
+
+```{r continent,echo=FALSE,fig.height=5 , fig.width=10}
+continent <- abc %>% 
+  filter(WHO_region != "Other") %>% 
+  mutate(WHO_region = fct_recode(WHO_region,
+                                 "Eastern Mediterranean"="EMRO",
+                                 "Europe" = "EURO",
+                                 "Africa" = "AFRO",
+                                 "Western Pacific" = "WPRO",
+                                 "Americas"="AMRO",
+                                 "South-East Asia" = "SEARO"))%>% mutate(WHO_region=as.factor(WHO_region))%>%  group_by(WHO_region,Date_reported) %>% summarise(newdeath=mean(New_deaths),newcase=mean(New_cases)) 
+
+con_death <- continent  %>% plot_ly(x=~Date_reported,y=~newdeath,color = ~WHO_region) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "daily new death",
+                      zeroline = FALSE)) 
+
+con_case <- continent  %>% plot_ly(x=~Date_reported,y=~newcase,color = ~WHO_region) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "daily new case",
+                      zeroline = FALSE)) 
+
+subplot( con_case,con_death, nrows = 2,shareX = T, shareY = F, titleX = T, titleY = T) %>% layout(title = "Figure 2: Average daily new case/new death of each WHO Region",showlegend=FALSE,showlegend2=FALSE)
+
+```
+
+Figure 2 shows the average daily new case/new death of each WHO Region. For different regions, the daily new cases or new death are relatively different. To gain a more robust result, we would focus our analysis on one region rather than the whole world. Thus, region Europe was selected, and countries that fit our inclusion criteria were included in this analysis. To sum up, we narrow our analysis to five countries - UK, Poland, France, Italy, Germany between Oct and Nov.
  
 # Background 
 ## Target population
@@ -65,7 +220,132 @@ There were two major objectives of the current project:
 (2) **Investigate the effect of strictness of stay-at-home order on growth rate of infectious population.** Using the lagged time found in the first part, this model would investigate how the strictness of policy and change in such policy affect the response variable. 
 
 # Descriptive analysis 
-The summary statistics should include at least time, number of cases, number of death, case-mortality rate.
+Our question of interest is related to stay at home policy. Hence, we would like to see what happens after the policy was announced. 
+
+```{r new death/cases,echo=FALSE,fig.height=5 , fig.width=10}
+France <- liela %>% filter(Country=="France")  
+United_Kingdom <- liela %>% filter(Country=="United_Kingdom")  
+Germany <- liela %>% filter(Country=="Germany")  
+Italy <- liela %>% filter(Country=="Italy")  
+Poland <- liela %>% filter(Country=="Poland")  
+# new death
+F_bar <- France %>% plot_ly(x=~Date_reported,y=~New_deaths,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "France",
+                      zeroline = FALSE)) 
+UK_bar <- United_Kingdom %>% plot_ly(x=~Date_reported,y=~New_deaths,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "UK",
+                      zeroline = FALSE)) 
+G_bar <- Germany %>% plot_ly(x=~Date_reported,y=~New_deaths,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "Germany",
+                      zeroline = FALSE)) 
+I_bar <- Italy %>% plot_ly(x=~Date_reported,y=~New_deaths,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "Italy",
+                      zeroline = FALSE)) 
+P_bar <- Poland %>% plot_ly(x=~Date_reported,y=~New_deaths,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "Poland",
+                      zeroline = FALSE)) 
+subplot( F_bar, UK_bar, G_bar, I_bar, P_bar, nrows = 5,shareX = T, shareY = F, titleX = T,titleY=T) %>% layout(title = "Figure 3: Daily new death of each country",showlegend=FALSE,showlegend2=FALSE)
+# new case
+F_barc <- France %>% plot_ly(x=~Date_reported,y=~New_cases,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "France",
+                      zeroline = FALSE)) 
+UK_barc <- United_Kingdom %>% plot_ly(x=~Date_reported,y=~New_cases,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "UK",
+                      zeroline = FALSE)) 
+G_barc <- Germany %>% plot_ly(x=~Date_reported,y=~New_cases,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "Germany",
+                      zeroline = FALSE)) 
+I_barc <- Italy %>% plot_ly(x=~Date_reported,y=~New_cases,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "Italy",
+                      zeroline = FALSE)) 
+P_barc <- Poland %>% plot_ly(x=~Date_reported,y=~New_cases,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "Poland",
+                      zeroline = FALSE)) 
+subplot( F_barc, UK_barc, G_barc, I_barc, P_barc, nrows = 5,shareX = T, shareY = F, titleX = T,titleY=T) %>% layout(title = "Figure 3: Daily new cases of each country",showlegend=FALSE,showlegend2=FALSE)
+
+```
+
+From figures 3 and 4, the daily new deaths/cases of each country, we can barely see the impact of stay-at-home policy while looking at daily new cases or daily new death for countries and time we selected. We can observe that daily new death/case increases while after the policy was published. Thus, to investigate whether the policy works, instead of daily new cases or deaths, we can look at the percent change in infectious populations (delta infectious). Figure 5 shows the daily delta infectious for each country, and this delta infectious decrease in general and were negative after Nov 15, which indicates quarantine had an impact. 
+
+```{r delta_infectious,echo=FALSE,fig.height=5 , fig.width=10}
+# new death
+Fi_bar <- France %>% plot_ly(x=~Date_reported,y=~delta_infectious,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "France",
+                      zeroline = FALSE)) 
+UKi_bar <- United_Kingdom %>% plot_ly(x=~Date_reported,y=~delta_infectious,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "UK",
+                      zeroline = FALSE)) 
+Gi_bar <- Germany %>% plot_ly(x=~Date_reported,y=~delta_infectious,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "Germany",
+                      zeroline = FALSE)) 
+Ii_bar <- Italy %>% plot_ly(x=~Date_reported,y=~delta_infectious,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "Italy",
+                      zeroline = FALSE)) 
+Pi_bar <- Poland %>% plot_ly(x=~Date_reported,y=~delta_infectious,color = ~stay_home_requirements) %>%
+  add_bars() %>%
+  layout(xaxis = list(title = "Date reported",
+                      zeroline = FALSE),
+         barmode = "stack",
+         yaxis = list(title = "Poland",
+                      zeroline = FALSE)) 
+subplot( Fi_bar, UKi_bar, Gi_bar, Ii_bar, Pi_bar, nrows = 5,shareX = T, shareY = F, titleX = T,titleY=T) %>% layout(title = "Figure 5: Daily percent change in infectious populatio for each country",showlegend=FALSE,showlegend2=FALSE)
+```
 
 # Inferential analysis 
 
