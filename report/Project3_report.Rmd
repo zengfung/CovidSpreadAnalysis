@@ -319,31 +319,31 @@ subplot( F_barc, UK_barc, G_barc, I_barc, P_barc, nrows = 5,shareX = T, shareY =
 
 ```
 ```{r pie chart-setup,include=F}
-France_pie <- liela_pie %>% filter(Country=="France") %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+France_pie <- liela %>% filter(Country=="France") %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
   `0` = "No measures",
   `1` = "recommend not leaving house",
   `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
   `3` = "Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time"
 ))
-United_Kingdom_pie <- liela_pie %>% filter(Country=="United_Kingdom")  %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+United_Kingdom_pie <- liela %>% filter(Country=="United_Kingdom")  %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
   `0` = "No measures",
   `1` = "recommend not leaving house",
   `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
   `3` = "Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time"
 ))
-Germany_pie <- liela_pie %>% filter(Country=="Germany")  %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+Germany_pie <- liela %>% filter(Country=="Germany")  %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
   `0` = "No measures",
   `1` = "recommend not leaving house",
   `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
   `3` = "Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time"
 ))
-Italy_pie <- liela_pie %>% filter(Country=="Italy")  %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+Italy_pie <- liela %>% filter(Country=="Italy")  %>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
   `0` = "No measures",
   `1` = "recommend not leaving house",
   `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
   `3` = "Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time"
 ))
-Poland_pie <- liela_pie %>% filter(Country=="Poland")%>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
+Poland_pie <- liela %>% filter(Country=="Poland")%>% mutate(stay_home_requirements=as.integer(stay_home_requirements)) %>% group_by(stay_home_requirements) %>% summarise(n=n()) %>%  mutate(policy = recode(stay_home_requirements,
   `0` = "No measures",
   `1` = "recommend not leaving house",
   `2` = "require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips",
