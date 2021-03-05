@@ -23,8 +23,46 @@ knitr::opts_chunk$set(warning = FALSE)
 
  
 # Background 
+## Target population
+During October and November 2020, daily reported cases in Americas and Europe skyrocketed. In response to such rapid increase in infected cases, many countries strengthened their stay-at-home order as one of the acts to control the spread of Covid-19. The question of interest is the effect of such policy response on containing the spread of disease. Admittedly, there are many factors other than the stay-at-home order that could affect the spreading rate, especially there were big regional differences among countries across the world, such as weather, economic status, demographics, medical conditions, and other Covid-19 related policies. Also, not all the regions had such peaks in Covid-19 cases as observed in Americas and Europe. In order to establish a causal inference of stay-at-home order on Covid-19 spread, we would like to target countries with similar geographic locations, and experienced similar total number and trends of Covid-19 cases during October to November 2020. Given such consideration, we decided to look at the top five European countries with population density over 100/$km^2$ and land area over 100,000 $mi^2$. Sine we were concerned about the spread of Covid-19, it was reasonabl to focus on countries with comparable population density as well as total number of cases. _Using such criteria, the five countries we focused our analysis on are: Germany, UK, France, Italy, and Poland._ All five countries made some changes to their stay-at-home policy during the period between October 1 and November 31,2020.
 
+## Data
+Contry level daily and cumulative Covid-19 cases and deaths data was obtained from the World Health Organization (WHO) website (https://covid19.who.int/WHO-COVID-19-global-data.csv). The country level stay-at-home order information was obtained from "Our World in Data - statistics and research on conronavirus pandemmic" (https://ourworldindata.org/covid-stay-home-restrictions). The source of the data was published by Oxford COVID-19 government response tracker and was maintained up-to-date. 
 
+### Predictors
+The predictor "stay-at-home order" is a categorical variable with four levels:
+
+* 0 - no measures
+* 1 - recommend not leaving house
+* 2 -  require not leaving house with exceptions for daily exercise, grocery shopping, and ‘essential’ trips
+* 3 - Require not leaving house with minimal exceptions (e.g. allowed to leave only once every few days, or only one person can leave at a time, etc.)
+
+None of the country in our target population had the most strict level "3" measure.
+
+### Respnose variable
+The spread of a disease is an exponential process. The classic SIR model in epidemiology describes the process as follows: in a population (N), each of the infected ones (I) had the potential to infect one or more susceptible people (S) before they recover or die (R). N = I(t) + S(t) + R(t), assuming people who have recovered will be immuned. Based on this model, for a country c at time t, the growth rate of infectious population is defined as: $$dI_{ct}/dt = I_{ct} - I_{c,t-1} = \beta I_{c,t-1} \frac{S_ct}{N_ct} - \gamma I_{c,t-1}$$
+where $\beta$ is the rate of infection, and $\gamma$ is the rate of recovery. Since the total number of people who have been infected was small compared to the whole population, we assumed that $\frac{S_ct}{N_ct} =1$. 
+
+The WHO dataset had information on daily new cases and cumulative cases, but not the number of recoveries, therefore we could not know the exact number of infectious population (I). In order to estimate it, we assumed that it took 7 days for a person to recover from Covid-19, starting from the day it was reported. That is, people who were reported to be positive on day 0 would be removed from the infectious population on day 7. Such an estimate could be not that accurate due to lack of information. Adjutment of this parameter could be done in future study. With this assumption, infectious population could be estimated as:
+\[
+\begin{aligned}
+I_{ct} &= y_{ct} - y_{c,t-7} \\
+I_{c,t-1} &= y_{c,t-1} - y_{c,t-8}
+\end{aligned}
+\]
+where $y_{ct}$ is the number of cumulative case in country c on date t.
+
+With this estimate, the growth rate of infectious population (percentage point)
+
+$$\Delta y_{ct} = \frac{I_{ct} - I_{c,t-1}}{I_{c,t-1}} = \frac{(y_{ct} - y_{c(t-7)}) - (y_{c(t-1)} - y_{c(t-8)})}{y_{c(t-1)} - y_{c(t-8)}}$$
+was used as the response variable to reflect the spread of Covid-19.
+
+## Obejctive
+There were two major objectives of the current project:
+
+(1) **Find the lagged effect of stay-at-home order.** It is common that a policy takes time to reveal its effect after implementation. The lagged time of stay-at-home order on Covid-19 infectious population growth rate was unclear. Thus, we constructed a model to find the number of days after the policy started when its effect first became significant.
+
+(2) **Investigate the effect of strictness of stay-at-home order on growth rate of infectious population.** Using the lagged time found in the first part, this model would investigate how the strictness of policy and change in such policy affect the response variable. 
 
 # Descriptive analysis 
 The summary statistics should include at least time, number of cases, number of death, case-mortality rate.
@@ -88,7 +126,7 @@ As observed in the world trend of daily cases of Covid-19, there was a peak betw
 A fixed effect regression model was constructed. One advantage of this model is that it controls for unobserved country-specific factors that were not included as predictors.This model is equivalent to a difference-in-difference model with variation in treatment time.
 
 ### Model setup and parameter notation
-An one-way fixed effect regression model was defined as: $$Y_{ct} = \beta_c + \sum_{\tau \neq -1}\beta_\tau X_{ct\tau}+\epsilon_{ct}$$
+An one-way fixed effect regression model was defined as: $$\Delta y_{ct} = \beta_c + \sum_{\tau \neq -1}\beta_\tau X_{ct\tau}+\epsilon_{ct}$$
 
 **Parameter notation** <br>
 
@@ -432,6 +470,10 @@ Overall, we managed to satisfy most of the assumptions of a fixed-effect model, 
 [1] Fowler, J., Hill, S., Levin, R., Obradovich, N..(2020) The Effect of Stay-at-Home Orders on COVID-19 Infections on the United States. [medrxiv.org](https://www.medrxiv.org/content/10.1101/2020.04.13.20063628v2.full) <br>
 [2] Torres-Reyna, O. (2010) Getting Started in Fixed/Random Effects Models using R. Lecture slides. [dss.princeton.edu](https://dss.princeton.edu/training/Panel101R.pdf) <br>
 [3] Schmidheiny, K. (2020) Panel Data: Fixed and Random Effects. Lecture Notes. [schmidheiny.name](https://www.schmidheiny.name/teaching/panel2up.pdf)
+<br>
+[4] Thomas Hale, Sam Webster, Anna Petherick, Toby Phillips, and Beatriz Kira (2020). Oxford COVID-19 Government Response Tracker, Blavatnik School of Government. <br>
+[5] Fowler, J. H., Hill, S. J., Levin, R., & Obradovich, N. (2020). The effect of stay-at-home orders on COVID-19 infections in the United States. arXiv preprint arXiv:2004.06098. <br>
+
 
 # Session info {-}
 
