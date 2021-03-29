@@ -3,9 +3,8 @@ title: "Project 3 Discussion Report"
 author: "Team 2: Zeng Fung Liew (913802324), Yixing Lu (915501254), Liela Meng (917843295), Apurv Srivastav (918936075)"
 date: "March 12, 2021"
 output:
-  html_document:
-    df_print: paged
-    number_sections: yes
+  md_document:
+    variant: markdown_github
 ---
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(fig.pos = 'H')

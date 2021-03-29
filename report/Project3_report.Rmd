@@ -4,9 +4,9 @@ subtitle: "Analysis of 5 European countries: France, Germany, UK, Italy, and Pol
 author: "Team 2: Zeng Fung Liew (913802324), Yixing Lu (915501254), Liela Meng (917843295), Apurv Srivastav (918936075)"
 date: "March 5th, 2021"
 output:
-  html_document:
-    df_print: paged
-    number_sections: yes
+  md_document:
+    variant: markdown_github
+always_allow_html: true
 ---
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(fig.pos = 'H')
